@@ -29,7 +29,7 @@ Deno.test("exports exact 20-series public quote/trade proxies without credential
       const headers = new Headers(init?.headers);
       assertEquals(headers.has("authorization"), false);
       assertEquals([...headers.keys()].some((name) => name.toLowerCase().startsWith("kalshi-access")), false);
-      if (lastRequestAt !== null) assertEquals(clock - lastRequestAt >= 200, true);
+      if (lastRequestAt !== null) assertEquals(clock - lastRequestAt >= 1_000, true);
       lastRequestAt = clock;
       if (url.pathname.includes("/candlesticks")) {
         if (lastCandleAt !== null) assertEquals(clock - lastCandleAt >= 1_000, true);
@@ -136,7 +136,7 @@ Deno.test("selection ignores attractive final quotes and outcomes and reports mi
   );
 });
 
-Deno.test("HTTP 429 is terminal without retry and request budgets are exact", async () => {
+Deno.test("HTTP 429 reports the failed ordinal/path without retry or successful capture", async () => {
   assertThrows(
     () => new BoundedPublicKalshiClient(V43_EXECUTION_PROXY_MAX_REQUESTS - 1),
     Error,
@@ -152,9 +152,14 @@ Deno.test("HTTP 429 is terminal without retry and request budgets are exact", as
     () => 0,
     () => Promise.resolve(),
   );
-  await assertRejects(() => client.request("/historical/cutoff"), Error, "HTTP 429 is terminal");
+  await assertRejects(
+    () => client.request("/historical/markets", { series_ticker: "KXHIGHNY", limit: "1000" }),
+    Error,
+    "HTTP 429 is terminal; attempted_request=1 path=/trade-api/v2/historical/markets?series_ticker=KXHIGHNY&limit=1000",
+  );
   assertEquals(attempts, 1);
   assertEquals(client.requestCount, 0);
+  assertEquals(client.captures, []);
 });
 
 Deno.test("repeated discovery cursors and checksum drift fail closed", async () => {

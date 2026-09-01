@@ -83,10 +83,14 @@ The absolute request ceiling is derived before execution:
 | Historical trades: 2,000 tickers × 3 pages |     6,000 |
 | **Total**                                  | **8,401** |
 
-The client sends no Kalshi authentication headers, never retries, treats HTTP 429 as terminal, limits all reads to five
-per second, and limits candlestick starts to one per second. Every provider page, candle response, selected raw market,
-selected raw event, and public trade receives a SHA-256 identity. Input and output paths must be children of `/var/tmp`,
-and the JSON output is create-once. No database is opened.
+The client sends no Kalshi authentication headers, never retries, treats HTTP 429 as terminal, limits every request
+start to one per second, and therefore also limits candlestick starts to one per second. A terminal HTTP or
+malformed-JSON error names the attempted request ordinal and exact public path, but a failed request is never appended
+to the successful capture manifest. Every successful provider page, candle response, selected raw market, selected raw
+event, and public trade receives a SHA-256 identity. Input and output paths must be children of `/var/tmp`, and the JSON
+output is create-once. No database is opened. See the
+[first-run rate incident](2026-09-01-execution-proxy-rate-incident.md) for the measured reason for the conservative
+all-request cadence.
 
 Run only after the complete source and evaluator artifacts exist:
 
