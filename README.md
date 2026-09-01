@@ -27,7 +27,11 @@ shard for both profiles on public standard runners with at most two concurrent j
 profile/date. It uploads source-only artifacts and never commits evidence. Historical calibration cannot receive quote,
 execution, fill, profit, recommendation, capital, trading, or current-v5 evidence credit. A separate bounded aggregate
 task verifies all 100 per-date checksums and emits one deterministic 2,000-row source artifact per horizon; it never
-pools f042 and f066.
+pools f042 and f066. The separate outcome task makes exactly two no-retry NCEI requests for the frozen 20 stations and
+100 dates. The evaluator checksum-validates both 2,000-row horizon artifacts and all 2,000 official integer TMAX
+outcomes, applies exact `TMAX <= floor(Q95)` arithmetic, and reports fixed-0.95 Brier and deterministic whole-date
+cluster-bootstrap diagnostics for each horizon separately. This adaptive holdout can quickly falsify the family, but it
+is not independent OOS, execution, fill, profit, capital, recommendation, order, or activation evidence.
 
 An independent f066 source lane captures the two-day-prior 12Z `48-66 hour max fcst:95% level` message each day at 20:35
 UTC, assigns the market date two days ahead, and persists it create-once under `evidence-f066/YYYY-MM-DD/`. Its

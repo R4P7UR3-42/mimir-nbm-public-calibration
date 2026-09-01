@@ -36,3 +36,25 @@ deno task aggregate:v43-source -- \
 Run the command separately with `v43-f066`; it rejects current-v5 profiles, missing or duplicate dates, checksum drift,
 authority drift, mixed horizons, and output overwrite. The artifact identifies itself as an adaptive historical holdout
 with `independent_oos=false`; it contains source forecasts only.
+
+Acquire the exact official integer-TMAX outcome artifact once, then evaluate both checksum-bound horizons together:
+
+```sh
+deno task acquire:v43-outcomes -- \
+  --stations data/stations.json \
+  --output /var/tmp/nbm-v43-outcomes.json
+
+deno task evaluate:v43 -- \
+  --f042 /var/tmp/nbm-v43-f042-horizon.json \
+  --f066 /var/tmp/nbm-v43-f066-horizon.json \
+  --outcomes /var/tmp/nbm-v43-outcomes.json \
+  --output /var/tmp/nbm-v43-evaluation.json
+```
+
+Outcome acquisition has a two-request total budget, never retries, and treats HTTP 429 as terminal. The evaluator
+requires complete exact station/date coverage, verifies every artifact checksum and source/run identity, and scores
+`official integer TMAX <= floor(native Q95)`. It uses 10,000 fixed-seed whole-market-date bootstrap resamples for each
+horizon and station leave-one-out slice. The horizons share the same 100 market-date clusters and cannot be reported as
+200 independent dates. Because the family was selected after related NBM development, this remains an adaptive
+historical holdout: a failure can falsify the family quickly, while a pass cannot authorize trading or support a profit
+claim without prospective independent evidence and executable fills.
