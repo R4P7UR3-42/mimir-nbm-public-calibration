@@ -1,0 +1,22 @@
+[
+  { "station_id": "KOKC", "latitude": 35.393, "longitude": -97.601 },
+  { "station_id": "KHOU", "latitude": 29.646, "longitude": -95.279 },
+  { "station_id": "KSAT", "latitude": 29.533, "longitude": -98.469 },
+  { "station_id": "KNYC", "latitude": 40.783, "longitude": -73.967 },
+  { "station_id": "KBOS", "latitude": 42.365, "longitude": -71.009 },
+  { "station_id": "KPHL", "latitude": 39.874, "longitude": -75.242 },
+  { "station_id": "KDCA", "latitude": 38.852, "longitude": -77.037 },
+  { "station_id": "KMDW", "latitude": 41.786, "longitude": -87.752 },
+  { "station_id": "KATL", "latitude": 33.64, "longitude": -84.427 },
+  { "station_id": "KAUS", "latitude": 30.194, "longitude": -97.67 },
+  { "station_id": "KMIA", "latitude": 25.795, "longitude": -80.29 },
+  { "station_id": "KDFW", "latitude": 32.899, "longitude": -97.04 },
+  { "station_id": "KDEN", "latitude": 39.856, "longitude": -104.673 },
+  { "station_id": "KLAX", "latitude": 33.942, "longitude": -118.408 },
+  { "station_id": "KSFO", "latitude": 37.619, "longitude": -122.375 },
+  { "station_id": "KSEA", "latitude": 47.45, "longitude": -122.309 },
+  { "station_id": "KPHX", "latitude": 33.435, "longitude": -112.011 },
+  { "station_id": "KLAS", "latitude": 36.084, "longitude": -115.153 },
+  { "station_id": "KMSP", "latitude": 44.884, "longitude": -93.222 },
+  { "station_id": "KMSY", "latitude": 29.993, "longitude": -90.258 }
+]

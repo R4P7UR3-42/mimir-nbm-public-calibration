@@ -1,0 +1,8 @@
+attrs==26.1.0
+cffi==2.1.1
+eccodes==2.48.0
+eccodeslib==2.48.0.26
+eckitlib==2.1.1.26
+findlibs==0.1.3
+numpy==2.5.2
+pycparser==3.0

@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "check": "deno check scripts/capture.ts scripts/capture_test.ts",
+    "test": "deno test --allow-read=. scripts/capture_test.ts",
+    "lint": "deno lint scripts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  },
+  "compilerOptions": {
+    "strict": true
+  },
+  "fmt": {
+    "lineWidth": 120,
+    "semiColons": true,
+    "singleQuote": false
+  }
+}
