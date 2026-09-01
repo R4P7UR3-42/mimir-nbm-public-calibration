@@ -20,9 +20,22 @@ logic, capital authority, or trading authority. Every artifact explicitly record
 recommendation, order, capital, trading, and production-activation authority. A successful canary establishes source
 feasibility only.
 
-An independent f066 source lane captures the two-day-prior 12Z `48-66 hour max fcst:95% level` message each day at
-20:35 UTC, assigns the market date two days ahead, and persists it create-once under
-`evidence-f066/YYYY-MM-DD/`. Its prospective threshold-dominance hypothesis is frozen separately in
+A separate historical-calibration workflow freezes the common market-date window `2026-01-07` through `2026-04-16`
+(exactly 100 dates) inside the NOAA NBM v4.3 regime. Its disjoint `v43-f042` and `v43-f066` profiles map each market
+date to the prior-day f042 and two-day-prior f066 12Z objects respectively. Manual dispatch captures one fixed 25-date
+shard for both profiles on public standard runners with at most two concurrent jobs and exactly two NOAA requests per
+profile/date. It uploads source-only artifacts and never commits evidence. Historical calibration cannot receive quote,
+execution, fill, profit, recommendation, capital, trading, or current-v5 evidence credit. A separate bounded aggregate
+task verifies all 100 per-date checksums and emits one deterministic 2,000-row source artifact per horizon; it never
+pools f042 and f066. The separate outcome task makes exactly two no-retry NCEI requests for the frozen 20 stations and
+100 dates. The evaluator checksum-validates both 2,000-row horizon artifacts and all 2,000 official integer TMAX
+outcomes, applies exact `TMAX <= floor(Q95)` arithmetic, and reports fixed-0.95 Brier and deterministic whole-date
+cluster-bootstrap diagnostics for each horizon separately. This adaptive holdout can quickly falsify the family, but it
+is not independent OOS, execution, fill, profit, capital, recommendation, order, or activation evidence.
+
+An independent f066 source lane captures the two-day-prior 12Z `48-66 hour max fcst:95% level` message each day at 20:35
+UTC, assigns the market date two days ahead, and persists it create-once under `evidence-f066/YYYY-MM-DD/`. Its
+prospective threshold-dominance hypothesis is frozen separately in
 [`docs/f066-threshold-dominance-oos.md`](docs/f066-threshold-dominance-oos.md); it begins on 2026-09-03 and grants no
 trading authority. The original f042 workflow, schemas, schedule, and `evidence/` namespace remain unchanged.
 
