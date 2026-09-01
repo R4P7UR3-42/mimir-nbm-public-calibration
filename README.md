@@ -39,6 +39,11 @@ prospective threshold-dominance hypothesis is frozen separately in
 [`docs/f066-threshold-dominance-oos.md`](docs/f066-threshold-dominance-oos.md); it begins on 2026-09-03 and grants no
 trading authority. The original f042 workflow, schemas, schedule, and `evidence/` namespace remain unchanged.
 
+After the first 50 v4.3 dates showed severe raw-Q95 undercoverage, the distinct
+[`floor(Q95)+3°F` adaptive freeze](docs/f066-q95-plus-three-adaptive-freeze.md) reserved the untouched final 50 v4.3
+dates for falsification and a separate zero-credit current-v5 prospective ledger beginning September 3. The v4.3 and
+v5 identities never pool, and neither grants trading authority.
+
 The separate [public execution-proxy exporter](docs/v43-public-execution-proxy.md) can inspect the frozen v4.3 f042
 window without credentials or a database. It binds exact daily high-temperature contracts and NWS settlement products
 before reading one-minute historical top-of-book candles and exact-ticker public trades. Candles contain no depth,
