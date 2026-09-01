@@ -108,7 +108,7 @@ export class BoundedPublicKalshiClient {
     if (!path.startsWith("/") || path.includes("..")) throw new Error("public request path is unsafe");
     if (this.requestCount >= this.maxRequests) throw new Error("public execution proxy request budget exhausted");
     const now = this.nowMs();
-    const ordinaryWait = this.lastRequestStartedAt === null ? 0 : this.lastRequestStartedAt + 200 - now;
+    const ordinaryWait = this.lastRequestStartedAt === null ? 0 : this.lastRequestStartedAt + 1_000 - now;
     const candleWait = kind === "candlestick" && this.lastCandlestickStartedAt !== null
       ? this.lastCandlestickStartedAt + 1_000 - now
       : 0;
@@ -120,15 +120,18 @@ export class BoundedPublicKalshiClient {
 
     const url = new URL(`${BASE_URL}${path}`);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+    const attemptedRequestNumber = this.requestCount + 1;
+    const attemptedPath = `${url.pathname}${url.search}`;
     const response = await this.fetchImpl(url, { method: "GET", headers: { accept: "application/json" } });
-    if (response.status === 429) throw new Error(`Kalshi HTTP 429 is terminal at ${path}`);
-    if (!response.ok) throw new Error(`Kalshi HTTP ${response.status} at ${path}`);
+    const attempt = `attempted_request=${attemptedRequestNumber} path=${attemptedPath}`;
+    if (response.status === 429) throw new Error(`Kalshi HTTP 429 is terminal; ${attempt}`);
+    if (!response.ok) throw new Error(`Kalshi HTTP ${response.status}; ${attempt}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
     let payload: unknown;
     try {
       payload = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
-      throw new Error(`Kalshi JSON is malformed at ${path}`);
+      throw new Error(`Kalshi JSON is malformed; ${attempt}`);
     }
     const value = object(payload, `Kalshi response ${path}`);
     this.captures.push({
@@ -287,7 +290,7 @@ export async function exportV43ExecutionProxy(input: {
     request_policy: {
       maximum_requests: V43_EXECUTION_PROXY_MAX_REQUESTS,
       actual_requests: input.client.requestCount,
-      maximum_reads_per_second: 5,
+      maximum_reads_per_second: 1,
       maximum_candlestick_reads_per_second: 1,
       maximum_series_pages: V43_EXECUTION_PROXY_MAX_SERIES_PAGES,
       maximum_trade_pages_per_ticker: V43_EXECUTION_PROXY_MAX_TRADE_PAGES,
