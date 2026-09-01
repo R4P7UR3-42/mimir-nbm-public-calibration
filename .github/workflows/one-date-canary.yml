@@ -13,7 +13,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   TMPDIR: /var/tmp
@@ -58,9 +58,25 @@ jobs:
           deno task check
           deno task test
           deno task lint
+      - name: Verify create-once durable evidence before provider access
+        id: persistence
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+        run: |
+          STATE="$(deno run --allow-read=. scripts/persist.ts preflight --market-date "$MARKET_DATE")"
+          if [[ "$STATE" == "existing" ]]; then
+            echo "capture_required=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$STATE" == "missing" ]]; then
+            echo "capture_required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "unsupported persistence state: $STATE" >&2
+            exit 1
+          fi
       - name: Install exact decoder versions
+        if: steps.persistence.outputs.capture_required == 'true'
         run: python -m pip install --disable-pip-version-check -r scripts/requirements.txt
       - name: Capture exactly one date with two NOAA requests
+        if: steps.persistence.outputs.capture_required == 'true'
         env:
           MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
         run: |
@@ -94,12 +110,45 @@ jobs:
             .coverage.stations == 20 and
             .coverage.complete == true
           ' evidence.json
-      - name: Upload checksum-bound public evidence
+      - name: Preserve checksum-bound evidence create-once
+        if: steps.persistence.outputs.capture_required == 'true'
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+          WORKFLOW_SOURCE_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          deno run \
+            --allow-read=.,/var/tmp/nbm-q95-canary \
+            --allow-write=evidence \
+            scripts/persist.ts preserve \
+            --market-date "$MARKET_DATE" \
+            --source-dir /var/tmp/nbm-q95-canary \
+            --workflow-source-sha "$WORKFLOW_SOURCE_SHA" \
+            --workflow-run-id "$WORKFLOW_RUN_ID" \
+            --workflow-run-attempt "$WORKFLOW_RUN_ATTEMPT"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "evidence/$MARKET_DATE/evidence.json" \
+            "evidence/$MARKET_DATE/provenance.json" \
+            "evidence/$MARKET_DATE/SHA256SUMS"
+          git diff --cached --quiet && { echo "new evidence produced no create-once diff" >&2; exit 1; }
+          git commit -m "evidence: preserve NOAA NBM Q95 $MARKET_DATE"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Reverify durable evidence without provider access
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+        run: |
+          test "$(deno run --allow-read=. scripts/persist.ts preflight --market-date "$MARKET_DATE")" = "existing"
+          cd "evidence/$MARKET_DATE"
+          sha256sum -c SHA256SUMS
+      - name: Upload checksum-bound public evidence convenience copy
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: noaa-nbm-q95-${{ steps.market-date.outputs.market_date }}-${{ github.run_id }}
           path: |
-            /var/tmp/nbm-q95-canary/evidence.json
-            /var/tmp/nbm-q95-canary/SHA256SUMS
+            evidence/${{ steps.market-date.outputs.market_date }}/evidence.json
+            evidence/${{ steps.market-date.outputs.market_date }}/provenance.json
+            evidence/${{ steps.market-date.outputs.market_date }}/SHA256SUMS
           if-no-files-found: error
           retention-days: 30

@@ -1,7 +1,7 @@
 {
   "tasks": {
-    "check": "deno check scripts/capture.ts scripts/capture_test.ts",
-    "test": "deno test --allow-read=. scripts/capture_test.ts",
+    "check": "deno check scripts/capture.ts scripts/capture_test.ts scripts/persist.ts scripts/persist_test.ts",
+    "test": "deno test --allow-read=.,/var/tmp --allow-write=/var/tmp scripts/capture_test.ts scripts/persist_test.ts",
     "lint": "deno lint scripts"
   },
   "imports": {

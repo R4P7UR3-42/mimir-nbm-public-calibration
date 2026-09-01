@@ -9,8 +9,11 @@ one byte range), decodes the frozen 20-station inventory with pinned ecCodes, an
 
 The default-branch workflow runs daily at 20:20 UTC, after the frozen 20:00 UTC source-availability deadline. Scheduled
 runs deterministically assign the next UTC date as the market date; manual runs retain an explicit `market_date` input.
-Runs share one non-cancelling concurrency group, time out after 20 minutes, and retain checksum-bound artifacts for 30
-days.
+Runs share one non-cancelling concurrency group and time out after 20 minutes. Every first successful date is committed
+create-once under `evidence/YYYY-MM-DD/`, where `SHA256SUMS` covers both `evidence.json` and a provenance manifest that
+binds the workflow-start SHA and run identity. Thirty-day Actions artifacts are convenience copies, not evidence
+authority. A rerun verifies the durable files before any NOAA request and skips capture when that exact date already
+exists; malformed, partial, or changed evidence fails closed and is never overwritten.
 
 This repository contains no Kalshi client, credentials, private data, production access, recommendation logic, order
 logic, capital authority, or trading authority. Every artifact explicitly records source-only status and false
