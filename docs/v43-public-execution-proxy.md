@@ -21,11 +21,23 @@ freezes:
 - prior-market-date `20:05:00Z` as the causal decision time; and
 - the exact HTTPS NWS CLI settlement URL, office, `issuedby` product, and observation station.
 
-`v43-f066` is checksum- and calibration-validated and then rejected before the first Kalshi request. Its distinct
-prospective rule admits every above threshold at or above `ceil(f066 Q95)`, selects the first qualifying quote in the
-prior-day `[14:00Z,18:00Z)` window, and requires displayed depth at least one. Historical candles contain no displayed
-depth and cannot reproduce that cross-contract first-qualifying selection. Applying f042's `floor(Q95)` and `20:05Z`
-clock would be false evidence; a later f066 exporter needs a separately bounded exact multi-contract source with depth.
+The earlier raw `v43-f066` evaluation remains rejected before the first Kalshi request. It cannot inherit f042's
+`floor(Q95)` strike or `20:05Z` clock, and it cannot be relabeled as the later buffered policy.
+
+The separately frozen `noaa_nbm_v43_f066_q95_floor_plus_3_adaptive_holdout_v1` identity is supported only as a bounded
+price/trade-availability proxy after every one of its 50-date holdout gates passes. The exporter admits exactly the
+untouched `2026-02-26` through `2026-04-16` rows, selects only the exact `greater` strike `floor(native f066 Q95)+3°F`,
+and reads one-minute candles and public trades strictly inside the prior-day `[14:00Z,18:00Z)` window. The inspected
+first 50 dates, f042 rows, raw f066 policy, current-v5 prospective rows, adjacent strikes, and adjacent clock boundaries
+receive no credit.
+
+For the buffered f066 policy, the first complete in-window candle carrying a YES-bid close supplies a NO-ask price
+proxy. It can measure whether the exact strike commonly showed a price in the frozen `$0.70`–`$0.97` band and whether
+compatible public prints followed. It cannot prove the prospective first _depth-qualified_ quote: candles omit displayed
+quantity and compress the minute, so within-minute quote ordering and the depth-at-least-one condition are
+unrecoverable. Every f066 row therefore records `displayed_depth=null` and
+`exact_prospective_selection_reconstructed=false`; the artifact reports no exact net-EV selection, executable depth,
+member fill, or trading authority. Current-v5 causal prospective snapshots remain necessary.
 
 The market payload's final quote, result, and volume cannot influence selection. A missing exact strike, missing NWS
 identity, duplicate identity, or market that was not open at the frozen decision remains an explicit unsupported row. It
@@ -86,6 +98,8 @@ deno task export:v43-execution-proxy -- \
   --max-requests 8401
 ```
 
-The command supports f042 only. It rejects f066 before networking and never permits either horizon to inherit the
-other's rule. Do not reinterpret a quote/trade proxy as a member fill, realized P&L, independent OOS evidence, or
-permission to trade.
+For the exact buffered f066 identity, substitute the checksum-bound `v43-f066` horizon and its exact plus-three
+evaluation artifact. The same command then emits 1,000 holdout rows under the strict four-hour proxy window. Raw f066,
+adjacent buffered identities, and development/current-v5 rows still fail before networking. Do not reinterpret a
+quote/trade proxy as exact depth-qualified selection, exact fee-adjusted EV, a member fill, realized P&L, independent
+OOS evidence, or permission to trade.
