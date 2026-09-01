@@ -8,12 +8,12 @@ This decision was frozen on 2026-09-01 after only the first two v4.3 source shar
 inspected development interval is `2026-01-07` through `2026-02-25`: 50 market dates, 20 frozen stations, and 1,000
 station/dates. Exact official integer TMAX coverage was:
 
-| f066 threshold | Wins | Coverage | Dates with at least one loss |
-| --- | ---: | ---: | ---: |
-| `floor(Q95)` | 842 / 1,000 | 84.2% | 46 / 50 |
-| `floor(Q95)+1°F` | 909 / 1,000 | 90.9% | 38 / 50 |
-| `floor(Q95)+2°F` | 948 / 1,000 | 94.8% | 30 / 50 |
-| `floor(Q95)+3°F` | 978 / 1,000 | 97.8% | 16 / 50 |
+| f066 threshold   |        Wins | Coverage | Dates with at least one loss |
+| ---------------- | ----------: | -------: | ---------------------------: |
+| `floor(Q95)`     | 842 / 1,000 |    84.2% |                      46 / 50 |
+| `floor(Q95)+1°F` | 909 / 1,000 |    90.9% |                      38 / 50 |
+| `floor(Q95)+2°F` | 948 / 1,000 |    94.8% |                      30 / 50 |
+| `floor(Q95)+3°F` | 978 / 1,000 |    97.8% |                      16 / 50 |
 
 The plus-three threshold is the smallest tested whole-degree buffer whose aggregate development coverage reached the
 nominal 0.95 score. This is an adaptive, post-inspection choice. It is not independent OOS calibration, a calibrated
@@ -24,10 +24,10 @@ probability, execution evidence, a profit claim, or trading authority.
 Only `2026-02-26` through `2026-04-16` may evaluate the historical identity: exactly 50 whole market-date clusters and
 1,000 station/dates. Earlier dates receive development credit only. Evaluate the exact rule
 `official integer TMAX <= floor(native f066 Q95)+3°F` with a fixed diagnostic score of 0.95. Report fixed-score Brier,
-whole-date deterministic clustered 90% and 95% lower calibration margins, station concentration, date concentration,
-and every station leave-one-out result. Do not pool f042, the raw f066 rule, development dates, current-v5 dates, or
-station rows as extra independent dates. A failure falsifies the buffered family. A pass is still only adaptive
-historical support and cannot authorize a recommendation or order.
+whole-date deterministic clustered 90% and 95% lower calibration margins, station concentration, date concentration, and
+every station leave-one-out result. Do not pool f042, the raw f066 rule, development dates, current-v5 dates, or station
+rows as extra independent dates. A failure falsifies the buffered family. A pass is still only adaptive historical
+support and cannot authorize a recommendation or order.
 
 ## Separate current-v5 prospective ledger
 
@@ -48,13 +48,33 @@ For each exact station/date:
   fee-adjusted edge and ticker; and
 - use only the exact finalized Kalshi/NWS CLI-bound integer settlement outcome.
 
-Exact threshold equality passes. `floor(Q95)+2°F`, adjacent strikes, missing exact strikes, stale or
-later quotes, missing depth, wrong condition/side/source/settlement identity, and immediately lower fee-adjusted edge
-fail. Stop for review after 30 independent prospective market dates. Evaluate whole dates, fixed reliability bands,
-Brier skill versus displayed price, station/date concentration, drawdown, exact quote economics, and causal public-trade
-support separately. Provider-confirmed fill evidence remains zero unless a later separately reviewed micro-live cohort
-actually submits and fills.
+Exact threshold equality passes. `floor(Q95)+2°F`, adjacent strikes, missing exact strikes, stale or later quotes,
+missing depth, wrong condition/side/source/settlement identity, and immediately lower fee-adjusted edge fail. Stop for
+review after 30 independent prospective market dates. Evaluate whole dates, fixed reliability bands, Brier skill versus
+displayed price, station/date concentration, drawdown, exact quote economics, and causal public-trade support
+separately. Provider-confirmed fill evidence remains zero unless a later separately reviewed micro-live cohort actually
+submits and fills.
 
 The prospective ledger has no recommendation, order, capital-risk, trading, or production-activation authority. A
 separate reviewed cohort decision still requires positive conservative net EV, exact executable depth, provider fills,
 explicit capital authority, and all production lifecycle gates.
+
+## Historical evaluator
+
+The credential-free evaluator consumes only the complete checksum-bound `v43-f066` 2,000-row horizon and exact 2,000-row
+official outcome artifact. It rejects f042, raw or renamed f066 products, wrong source-run dates, malformed checksums,
+and incomplete station/date coverage. The first 1,000 rows remain visible only as the inspected development window and
+receive zero holdout rows or date credit. All Brier, concentration, clustered-bound, and station leave-one-out results
+use only the final 1,000 rows grouped into exactly 50 whole dates.
+
+Run locally with isolated `/var/tmp` artifacts:
+
+```sh
+deno task evaluate:v43-f066-plus-three -- \
+  --f066 /var/tmp/nbm-v43-f066-horizon.json \
+  --outcomes /var/tmp/nbm-v43-outcomes.json \
+  --output /var/tmp/nbm-v43-f066-plus-three-evaluation.json
+```
+
+The output is checksum-bound and create-once. A checksum-valid artifact relabeled as `+2°F`, 100 or 200 independent
+dates, independent OOS, profitable, authorized, or executable fails identity validation rather than receiving credit.

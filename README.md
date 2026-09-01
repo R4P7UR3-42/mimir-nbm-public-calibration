@@ -41,8 +41,13 @@ trading authority. The original f042 workflow, schemas, schedule, and `evidence/
 
 After the first 50 v4.3 dates showed severe raw-Q95 undercoverage, the distinct
 [`floor(Q95)+3°F` adaptive freeze](docs/f066-q95-plus-three-adaptive-freeze.md) reserved the untouched final 50 v4.3
-dates for falsification and a separate zero-credit current-v5 prospective ledger beginning September 3. The v4.3 and
-v5 identities never pool, and neither grants trading authority.
+dates for falsification and a separate zero-credit current-v5 prospective ledger beginning September 3. The v4.3 and v5
+identities never pool, and neither grants trading authority.
+
+That frozen `floor(Q95)+3°F` decision has a separate
+[50-date adaptive holdout evaluator](docs/f066-q95-plus-three-adaptive-freeze.md#historical-evaluator). It grants the
+inspected first 50 dates zero holdout credit and evaluates only February 26 through April 16 as whole-date clusters. The
+evaluator is local, checksum-bound, create-once, network-free, and authority-free.
 
 The separate [public execution-proxy exporter](docs/v43-public-execution-proxy.md) can inspect the frozen v4.3 f042
 window without credentials or a database. It binds exact daily high-temperature contracts and NWS settlement products
