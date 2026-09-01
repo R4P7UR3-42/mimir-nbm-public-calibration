@@ -121,6 +121,7 @@ async function main(rawArgs: string[]) {
       message_sha256: await sha256(bytes),
       etag,
       eccodes_version: decoded.eccodes_version,
+      decoded_identity: selectDecodedIdentity(decoded),
       grid_type: decoded.grid_type,
       packing_type: decoded.packing_type,
     },
@@ -151,6 +152,19 @@ async function main(rawArgs: string[]) {
   await Deno.remove(gribPath);
   await Deno.remove(decodedPath);
   console.log(JSON.stringify({ schema: evidence.schema, source: evidence.source, coverage: evidence.coverage }));
+}
+
+export function selectDecodedIdentity(decoded: Decoded) {
+  return {
+    data_date: decoded.data_date,
+    data_time: decoded.data_time,
+    step_hours: decoded.step_hours,
+    step_range: decoded.step_range,
+    percentile_value: decoded.percentile_value,
+    short_name: decoded.short_name,
+    level_type: decoded.level_type,
+    level: decoded.level,
+  };
 }
 
 export function parseIndex(text: string, runDate: string) {

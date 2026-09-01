@@ -1,5 +1,33 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { parseIndex } from "./capture.ts";
+import { parseIndex, selectDecodedIdentity } from "./capture.ts";
+
+Deno.test("persists the exact validated decoded GRIB identity", () => {
+  const identity = selectDecodedIdentity({
+    schema: "noaa_nbm_native_max_t_q95_decode_v1",
+    eccodes_version: "2.48.0",
+    data_date: "20260831",
+    data_time: 1200,
+    step_hours: 42,
+    step_range: "24-42",
+    percentile_value: 95,
+    short_name: "max_2t",
+    level_type: "heightAboveGround",
+    level: 2,
+    grid_type: "lambert",
+    packing_type: "grid_complex_spatial_differencing",
+    values: [],
+  });
+  assertEquals(identity, {
+    data_date: "20260831",
+    data_time: 1200,
+    step_hours: 42,
+    step_range: "24-42",
+    percentile_value: 95,
+    short_name: "max_2t",
+    level_type: "heightAboveGround",
+    level: 2,
+  });
+});
 
 Deno.test("selects one exact Q95 row and adjacent byte interval", () => {
   const selected = parseIndex(
