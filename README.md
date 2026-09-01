@@ -49,13 +49,18 @@ That frozen `floor(Q95)+3°F` decision has a separate
 inspected first 50 dates zero holdout credit and evaluates only February 26 through April 16 as whole-date clusters. The
 evaluator is local, checksum-bound, create-once, network-free, and authority-free.
 
+The complete reviewed v4.3 source/outcome/evaluation tree is now
+[durable and root-manifest verified](docs/v43-reviewed-artifacts.md) in this repository rather than depending on
+expiring workflow artifacts or `/var/tmp`.
+
 The separate [public execution-proxy exporter](docs/v43-public-execution-proxy.md) can inspect the frozen v4.3 f042
-window without credentials or a database. It binds exact daily high-temperature contracts and NWS settlement products
-before reading one-minute historical top-of-book candles and exact-ticker public trades. Candles contain no depth,
-public trades are not member fills, and the exporter always reports zero provider-confirmed fills. It is a bounded
-strategy falsification aid, not execution, profit, recommendation, capital, order, trading, or production evidence. It
-explicitly rejects f066 before networking because f066's distinct `ceil(Q95)`/first-window-quote rule requires
-historical displayed depth that Kalshi candlesticks do not expose.
+window and the exact buffered f066 plus-three holdout without credentials or a database. It binds exact daily
+high-temperature contracts and NWS settlement products before reading one-minute historical top-of-book candles and
+exact-ticker public trades. The f066 lane uses only its final 50 dates, exact `floor(Q95)+3°F` strike, and strict
+prior-day `[14:00Z,18:00Z)` window. Candles contain no depth or within-minute quote sequence, public trades are not
+member fills, and the exporter always reports zero provider-confirmed fills. It is a bounded price/reachability
+falsification aid, not exact prospective selection, execution, profit, recommendation, capital, order, trading, or
+production evidence. Raw f066 and adjacent identities remain zero-network rejections.
 
 Run locally only in an isolated environment:
 

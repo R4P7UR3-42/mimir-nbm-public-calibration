@@ -1,0 +1,293 @@
+{
+  "artifact_sha256": "daa179386c029038c5445bc08c317ac20be81dd86d9e87be9e6b53f4fa2eb263",
+  "schema": "noaa_nbm_v43_f066_q95_floor_plus_3_adaptive_holdout_evaluation_v1",
+  "identity": "noaa_nbm_v43_f066_q95_floor_plus_3_adaptive_holdout_v1",
+  "generated_at": "2026-09-01T06:19:42.266Z",
+  "evidence_class": "adaptive_historical_holdout",
+  "adaptive_selection": true,
+  "independent_oos": false,
+  "profitability_claim": false,
+  "calibrated_probability_claim": false,
+  "execution_evidence": false,
+  "provider_confirmed_fill_evidence": false,
+  "research_only": true,
+  "recommendation_authority": false,
+  "order_authority": false,
+  "capital_risk_authority": false,
+  "trading_authority": false,
+  "production_activation": false,
+  "active_trading_capability_changed": false,
+  "source_artifact_sha256": "7f9ba9662e2e3ce7d6a214d8077f71f5144d7cf7ae80e8f3d5da5c81efb3d83b",
+  "outcome_artifact_sha256": "708ec7e8e4deca0e73c89d3a259409daedb0deba1f6fac245353e5b3604510f3",
+  "source_identity": {
+    "horizon": "f066",
+    "source_profile": "v43-f066",
+    "source_product": "noaa_nbm_v43_blend_qmd_12z_f066_native_max_t_q95_historical_calibration_v1"
+  },
+  "threshold_policy": {
+    "arithmetic": "official_integer_tmax_f <= floor(native_f066_q95_f) + 3",
+    "buffer_f": 3,
+    "fixed_probability": 0.95,
+    "adjacent_plus_2_identity_accepted": false
+  },
+  "development_window": {
+    "start": "2026-01-07",
+    "end": "2026-02-25",
+    "station_dates_inspected": 1000,
+    "market_dates_inspected": 50,
+    "holdout_rows_credited": 0,
+    "holdout_market_dates_credited": 0
+  },
+  "holdout_window": {
+    "start": "2026-02-26",
+    "end": "2026-04-16",
+    "station_dates": 1000,
+    "independent_market_dates": 50,
+    "stations": 20
+  },
+  "cluster_policy": {
+    "unit": "whole_market_date",
+    "reported_independent_market_dates": 50,
+    "prohibited_100_date_inflation": true,
+    "prohibited_200_date_inflation": true,
+    "development_pooling_prohibited": true,
+    "f042_pooling_prohibited": true,
+    "station_row_independence_claim_prohibited": true
+  },
+  "results": {
+    "rows": 1000,
+    "successes": 980,
+    "failures": 20,
+    "observed_success_rate": 0.98,
+    "brier_score_at_fixed_0_95": 0.020500000000000622,
+    "whole_date_clustered": {
+      "mean_observed_minus_score": 0.030000000000000037,
+      "one_sided_90_lower_margin": 0.02300000000000003,
+      "one_sided_95_lower_margin": 0.02100000000000003,
+      "method": "deterministic_whole_market_date_cluster_bootstrap_v1",
+      "seed": 66095003,
+      "samples": 10000,
+      "resampled_clusters_per_sample": 50
+    },
+    "concentration": {
+      "maximum_station_share": 0.05,
+      "maximum_date_share": 0.02
+    },
+    "station_leave_one_out": [
+      {
+        "excluded_station_id": "KATL",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 931,
+        "observed_success_rate": 0.98,
+        "mean_observed_minus_score": 0.030000000000000044,
+        "one_sided_90_lower_margin": 0.02263157894736846,
+        "one_sided_95_lower_margin": 0.020526315789473715
+      },
+      {
+        "excluded_station_id": "KAUS",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      },
+      {
+        "excluded_station_id": "KBOS",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 931,
+        "observed_success_rate": 0.98,
+        "mean_observed_minus_score": 0.030000000000000044,
+        "one_sided_90_lower_margin": 0.022631578947368457,
+        "one_sided_95_lower_margin": 0.020526315789473712
+      },
+      {
+        "excluded_station_id": "KDCA",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 935,
+        "observed_success_rate": 0.9842105263157894,
+        "mean_observed_minus_score": 0.034210526315789525,
+        "one_sided_90_lower_margin": 0.028947368421052673,
+        "one_sided_95_lower_margin": 0.02684210526315794
+      },
+      {
+        "excluded_station_id": "KDEN",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 931,
+        "observed_success_rate": 0.98,
+        "mean_observed_minus_score": 0.030000000000000044,
+        "one_sided_90_lower_margin": 0.02263157894736845,
+        "one_sided_95_lower_margin": 0.02052631578947371
+      },
+      {
+        "excluded_station_id": "KDFW",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      },
+      {
+        "excluded_station_id": "KHOU",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      },
+      {
+        "excluded_station_id": "KLAS",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      },
+      {
+        "excluded_station_id": "KLAX",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 932,
+        "observed_success_rate": 0.9810526315789474,
+        "mean_observed_minus_score": 0.0310526315789474,
+        "one_sided_90_lower_margin": 0.02368421052631582,
+        "one_sided_95_lower_margin": 0.021578947368421083
+      },
+      {
+        "excluded_station_id": "KMDW",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      },
+      {
+        "excluded_station_id": "KMIA",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.01947368421052634
+      },
+      {
+        "excluded_station_id": "KMSP",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 931,
+        "observed_success_rate": 0.98,
+        "mean_observed_minus_score": 0.030000000000000044,
+        "one_sided_90_lower_margin": 0.022631578947368457,
+        "one_sided_95_lower_margin": 0.020526315789473712
+      },
+      {
+        "excluded_station_id": "KMSY",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 931,
+        "observed_success_rate": 0.98,
+        "mean_observed_minus_score": 0.030000000000000044,
+        "one_sided_90_lower_margin": 0.022631578947368457,
+        "one_sided_95_lower_margin": 0.020526315789473712
+      },
+      {
+        "excluded_station_id": "KNYC",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 933,
+        "observed_success_rate": 0.9821052631578947,
+        "mean_observed_minus_score": 0.03210526315789478,
+        "one_sided_90_lower_margin": 0.02578947368421057,
+        "one_sided_95_lower_margin": 0.023684210526315835
+      },
+      {
+        "excluded_station_id": "KOKC",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 931,
+        "observed_success_rate": 0.98,
+        "mean_observed_minus_score": 0.030000000000000044,
+        "one_sided_90_lower_margin": 0.02263157894736845,
+        "one_sided_95_lower_margin": 0.020526315789473712
+      },
+      {
+        "excluded_station_id": "KPHL",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 934,
+        "observed_success_rate": 0.9831578947368421,
+        "mean_observed_minus_score": 0.03315789473684216,
+        "one_sided_90_lower_margin": 0.027894736842105302,
+        "one_sided_95_lower_margin": 0.025789473684210567
+      },
+      {
+        "excluded_station_id": "KPHX",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.01947368421052634
+      },
+      {
+        "excluded_station_id": "KSAT",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.01947368421052634
+      },
+      {
+        "excluded_station_id": "KSEA",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      },
+      {
+        "excluded_station_id": "KSFO",
+        "station_dates": 950,
+        "independent_market_dates": 50,
+        "successes": 930,
+        "observed_success_rate": 0.9789473684210527,
+        "mean_observed_minus_score": 0.02894736842105267,
+        "one_sided_90_lower_margin": 0.021578947368421083,
+        "one_sided_95_lower_margin": 0.019473684210526344
+      }
+    ]
+  },
+  "gates": {
+    "complete_exact_50_dates": true,
+    "nonnegative_clustered_90_margin": true,
+    "nonnegative_clustered_95_margin": true,
+    "maximum_station_share_at_most_0_05": true,
+    "maximum_date_share_at_most_0_02": true,
+    "all_station_leave_one_out_90_nonnegative": true,
+    "all_station_leave_one_out_95_nonnegative": true
+  },
+  "limitations": [
+    "The +3F buffer was chosen after inspecting January 7 through February 25 and is not independent OOS evidence.",
+    "Only February 26 through April 16 contributes to the 50-date adaptive holdout result.",
+    "A pass cannot establish executable prices, provider-confirmed fills, realized profit, or trading authority."
+  ]
+}

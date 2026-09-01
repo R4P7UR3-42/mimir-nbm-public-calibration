@@ -1,0 +1,349 @@
+{
+  "artifact_sha256": "cc2da8ae538fe99ab5d16f96d8f8f0d974924c6a428fc617fe878de65a52d9d5",
+  "schema": "noaa_nbm_v43_native_max_t_q95_adaptive_holdout_evaluation_v1",
+  "generated_at": "2026-09-01T06:19:41.193Z",
+  "evidence_class": "adaptive_historical_holdout",
+  "independent_oos": false,
+  "profitability_claim": false,
+  "research_only": true,
+  "provider_confirmed_fill_evidence": false,
+  "recommendation_authority": false,
+  "order_authority": false,
+  "capital_risk_authority": false,
+  "trading_authority": false,
+  "production_activation": false,
+  "active_trading_capability_changed": false,
+  "date_window": {
+    "start": "2026-01-07",
+    "end": "2026-04-16",
+    "independent_market_dates": 100
+  },
+  "horizon_policy": {
+    "horizons_evaluated_separately": true,
+    "pooled_horizon_sample_prohibited": true,
+    "reported_independent_market_dates": 100,
+    "prohibited_reported_market_dates": 200
+  },
+  "outcome_artifact_sha256": "708ec7e8e4deca0e73c89d3a259409daedb0deba1f6fac245353e5b3604510f3",
+  "horizon_artifact_sha256": {
+    "f042": "0282424cd1e32ff62899e846d3bcb83f00eb8b6e9854bc9826110ba817f442bf",
+    "f066": "7f9ba9662e2e3ce7d6a214d8077f71f5144d7cf7ae80e8f3d5da5c81efb3d83b"
+  },
+  "evaluations": [
+    {
+      "horizon": "f042",
+      "artifact_sha256": "0282424cd1e32ff62899e846d3bcb83f00eb8b6e9854bc9826110ba817f442bf",
+      "rows": 2000,
+      "independent_market_dates": 100,
+      "stations": 20,
+      "fixed_probability": 0.95,
+      "contract_arithmetic": "official_integer_tmax_f <= floor(native_q95_f)",
+      "successes": 1748,
+      "observed_success_rate": 0.874,
+      "brier_score_at_fixed_0_95": 0.11589999999999852,
+      "whole_date_clustered": {
+        "mean_observed_minus_score": -0.07600000000000003,
+        "one_sided_90_lower_margin": -0.08899999999999998,
+        "one_sided_95_lower_margin": -0.09250000000000001,
+        "method": "deterministic_whole_market_date_cluster_bootstrap_v1",
+        "seed": 43095042,
+        "samples": 10000,
+        "resampled_clusters_per_sample": 100
+      },
+      "concentration": {
+        "maximum_station_share": 0.05,
+        "maximum_date_share": 0.01
+      },
+      "station_leave_one_out": [
+        {
+          "excluded_station_id": "KATL",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08736842105263154
+        },
+        {
+          "excluded_station_id": "KAUS",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09842105263157894
+        },
+        {
+          "excluded_station_id": "KBOS",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.0894736842105263
+        },
+        {
+          "excluded_station_id": "KDCA",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08578947368421051
+        },
+        {
+          "excluded_station_id": "KDEN",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09894736842105269
+        },
+        {
+          "excluded_station_id": "KDFW",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09578947368421047
+        },
+        {
+          "excluded_station_id": "KHOU",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.0978947368421053
+        },
+        {
+          "excluded_station_id": "KLAS",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.10052631578947366
+        },
+        {
+          "excluded_station_id": "KLAX",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08684210526315787
+        },
+        {
+          "excluded_station_id": "KMDW",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09052631578947366
+        },
+        {
+          "excluded_station_id": "KMIA",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09631578947368419
+        },
+        {
+          "excluded_station_id": "KMSP",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09421052631578944
+        },
+        {
+          "excluded_station_id": "KMSY",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09368421052631579
+        },
+        {
+          "excluded_station_id": "KNYC",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.0863157894736842
+        },
+        {
+          "excluded_station_id": "KOKC",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09578947368421054
+        },
+        {
+          "excluded_station_id": "KPHL",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.07947368421052628
+        },
+        {
+          "excluded_station_id": "KPHX",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09789473684210531
+        },
+        {
+          "excluded_station_id": "KSAT",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09789473684210531
+        },
+        {
+          "excluded_station_id": "KSEA",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09473684210526312
+        },
+        {
+          "excluded_station_id": "KSFO",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08894736842105265
+        }
+      ],
+      "gates": {
+        "complete_100_dates": true,
+        "nonnegative_clustered_90_margin": false,
+        "nonnegative_clustered_95_margin": false,
+        "maximum_station_share_at_most_0_35": true,
+        "maximum_date_share_at_most_0_05": true,
+        "all_station_leave_one_out_95_nonnegative": false
+      }
+    },
+    {
+      "horizon": "f066",
+      "artifact_sha256": "7f9ba9662e2e3ce7d6a214d8077f71f5144d7cf7ae80e8f3d5da5c81efb3d83b",
+      "rows": 2000,
+      "independent_market_dates": 100,
+      "stations": 20,
+      "fixed_probability": 0.95,
+      "contract_arithmetic": "official_integer_tmax_f <= floor(native_q95_f)",
+      "successes": 1759,
+      "observed_success_rate": 0.8795,
+      "brier_score_at_fixed_0_95": 0.11094999999999847,
+      "whole_date_clustered": {
+        "mean_observed_minus_score": -0.0705,
+        "one_sided_90_lower_margin": -0.08250000000000002,
+        "one_sided_95_lower_margin": -0.08649999999999998,
+        "method": "deterministic_whole_market_date_cluster_bootstrap_v1",
+        "seed": 43095043,
+        "samples": 10000,
+        "resampled_clusters_per_sample": 100
+      },
+      "concentration": {
+        "maximum_station_share": 0.05,
+        "maximum_date_share": 0.01
+      },
+      "station_leave_one_out": [
+        {
+          "excluded_station_id": "KATL",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08157894736842104
+        },
+        {
+          "excluded_station_id": "KAUS",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08947368421052633
+        },
+        {
+          "excluded_station_id": "KBOS",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08421052631578947
+        },
+        {
+          "excluded_station_id": "KDCA",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08052631578947367
+        },
+        {
+          "excluded_station_id": "KDEN",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09315789473684216
+        },
+        {
+          "excluded_station_id": "KDFW",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09105263157894739
+        },
+        {
+          "excluded_station_id": "KHOU",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09000000000000005
+        },
+        {
+          "excluded_station_id": "KLAS",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09421052631578947
+        },
+        {
+          "excluded_station_id": "KLAX",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08052631578947367
+        },
+        {
+          "excluded_station_id": "KMDW",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.0863157894736842
+        },
+        {
+          "excluded_station_id": "KMIA",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08999999999999998
+        },
+        {
+          "excluded_station_id": "KMSP",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08736842105263158
+        },
+        {
+          "excluded_station_id": "KMSY",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08842105263157894
+        },
+        {
+          "excluded_station_id": "KNYC",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08315789473684208
+        },
+        {
+          "excluded_station_id": "KOKC",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08842105263157896
+        },
+        {
+          "excluded_station_id": "KPHL",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.07631578947368416
+        },
+        {
+          "excluded_station_id": "KPHX",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.0915789473684211
+        },
+        {
+          "excluded_station_id": "KSAT",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08999999999999997
+        },
+        {
+          "excluded_station_id": "KSEA",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.09105263157894744
+        },
+        {
+          "excluded_station_id": "KSFO",
+          "station_dates": 1900,
+          "independent_market_dates": 100,
+          "one_sided_95_lower_margin": -0.08
+        }
+      ],
+      "gates": {
+        "complete_100_dates": true,
+        "nonnegative_clustered_90_margin": false,
+        "nonnegative_clustered_95_margin": false,
+        "maximum_station_share_at_most_0_35": true,
+        "maximum_date_share_at_most_0_05": true,
+        "all_station_leave_one_out_95_nonnegative": false
+      }
+    }
+  ],
+  "limitations": [
+    "The Q95/f042/f066 family was selected after related NBM development results; this is an adaptive historical holdout, not independent OOS evidence.",
+    "Both horizons use the same 100 official market-date outcome clusters and are never pooled as 200 dates.",
+    "Calibration does not establish executable prices, provider-confirmed fills, realized profit, or trading authority."
+  ]
+}

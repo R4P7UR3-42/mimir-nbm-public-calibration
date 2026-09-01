@@ -1,0 +1,204 @@
+{
+  "schema": "noaa_nbm_v43_native_max_t_q95_f042_historical_source_v1",
+  "generated_at": "2026-09-01T06:16:19.223Z",
+  "research_only": true,
+  "source_only": true,
+  "historical_calibration_only": true,
+  "source_regime": "noaa_nbm_v4_3_20250528_20260504",
+  "executable_quote_evidence": false,
+  "outcome_evidence": false,
+  "credential_required": false,
+  "private_data_access": false,
+  "provider_confirmed_fill_evidence": false,
+  "recommendation_authority": false,
+  "order_authority": false,
+  "capital_risk_authority": false,
+  "trading_authority": false,
+  "production_activation": false,
+  "active_trading_capability_changed": false,
+  "automatic_production_activation": false,
+  "source": {
+    "source_profile": "v43-f042",
+    "source_product": "noaa_nbm_v43_blend_qmd_12z_f042_native_max_t_q95_historical_calibration_v1",
+    "market_date": "2026-04-11",
+    "run_initialized_at": "2026-04-10T12:00:00.000Z",
+    "available_at": "2026-04-10T19:18:05.000Z",
+    "object_url": "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20260410/12/qmd/blend.t12z.qmd.f042.co.grib2",
+    "index_url": "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20260410/12/qmd/blend.t12z.qmd.f042.co.grib2.idx",
+    "index_identity": "434:605665264:d=2026041012:TMP:2 m above ground:24-42 hour max fcst:95% level",
+    "index_sha256": "97832932d878ac086bd185db047a3a887fa8a912086d6969a6de8e52c1da048f",
+    "range_start": 605665264,
+    "range_end": 607259985,
+    "message_length": 1594722,
+    "object_length": 1212477067,
+    "message_sha256": "4bc6e736d56688a94840904a6501e8e51669b159c08605f694e60db14b9832af",
+    "etag": "\"20f2152bc6dbe17587e70afef8699cd8\"",
+    "eccodes_version": "2.48.0",
+    "decoded_identity": {
+      "data_date": "20260410",
+      "data_time": 1200,
+      "step_hours": 42,
+      "step_range": "24-42",
+      "percentile_value": 95,
+      "short_name": "max_2t",
+      "level_type": "heightAboveGround",
+      "level": 2
+    },
+    "valid_interval_start": "2026-04-11T12:00:00.000Z",
+    "valid_interval_end": "2026-04-12T06:00:00.000Z",
+    "grid_type": "lambert",
+    "packing_type": "grid_complex_spatial_differencing"
+  },
+  "request_policy": {
+    "maximum_requests": 2,
+    "actual_requests": 2,
+    "no_retry": true,
+    "terminal_http_429": true
+  },
+  "coverage": {
+    "stations": 20,
+    "complete": true
+  },
+  "rows": [
+    {
+      "station_id": "KOKC",
+      "grid_latitude": 35.38433118228793,
+      "grid_longitude": 262.4108140347036,
+      "distance_km": 1.440911701674299,
+      "q95_max_f": "83.7122070312501"
+    },
+    {
+      "station_id": "KHOU",
+      "grid_latitude": 29.656797025401456,
+      "grid_longitude": 264.7117162431062,
+      "distance_km": 1.4987855137729413,
+      "q95_max_f": "83.7122070312501"
+    },
+    {
+      "station_id": "KSAT",
+      "grid_latitude": 29.527133624602932,
+      "grid_longitude": 261.5194551411017,
+      "distance_km": 1.2935362584779886,
+      "q95_max_f": "86.59220703125004"
+    },
+    {
+      "station_id": "KNYC",
+      "grid_latitude": 40.77581630905478,
+      "grid_longitude": 286.02908716377715,
+      "distance_km": 0.8640932034045987,
+      "q95_max_f": "67.87220703125008"
+    },
+    {
+      "station_id": "KBOS",
+      "grid_latitude": 42.375366524876895,
+      "grid_longitude": 288.9927399323486,
+      "distance_km": 1.1615699478779078,
+      "q95_max_f": "63.55220703125002"
+    },
+    {
+      "station_id": "KPHL",
+      "grid_latitude": 39.87595519463707,
+      "grid_longitude": 284.7707156178237,
+      "distance_km": 1.1067002055358097,
+      "q95_max_f": "69.3122070312501"
+    },
+    {
+      "station_id": "KDCA",
+      "grid_latitude": 38.84413232498437,
+      "grid_longitude": 282.96780714836177,
+      "distance_km": 0.9688747831686632,
+      "q95_max_f": "73.63220703125006"
+    },
+    {
+      "station_id": "KMDW",
+      "grid_latitude": 41.794057426606,
+      "grid_longitude": 272.2599394651193,
+      "distance_km": 1.3351553905854256,
+      "q95_max_f": "62.832207031250064"
+    },
+    {
+      "station_id": "KATL",
+      "grid_latitude": 33.64307760339445,
+      "grid_longitude": 275.58554292764927,
+      "distance_km": 1.2105413945925347,
+      "q95_max_f": "88.75220703125002"
+    },
+    {
+      "station_id": "KAUS",
+      "grid_latitude": 30.203371537493158,
+      "grid_longitude": 262.3417191412575,
+      "distance_km": 1.5344420683562665,
+      "q95_max_f": "87.3122070312501"
+    },
+    {
+      "station_id": "KMIA",
+      "grid_latitude": 25.792057136763486,
+      "grid_longitude": 279.7144729452535,
+      "distance_km": 0.5546512054323369,
+      "q95_max_f": "81.55220703125002"
+    },
+    {
+      "station_id": "KDFW",
+      "grid_latitude": 32.889699107507425,
+      "grid_longitude": 262.9526651012722,
+      "distance_km": 1.2404425966831882,
+      "q95_max_f": "85.87220703125008"
+    },
+    {
+      "station_id": "KDEN",
+      "grid_latitude": 39.855374206075204,
+      "grid_longitude": 255.31539330125193,
+      "distance_km": 0.9932197613043922,
+      "q95_max_f": "80.83220703125006"
+    },
+    {
+      "station_id": "KLAX",
+      "grid_latitude": 33.937355495584285,
+      "grid_longitude": 241.5850875614553,
+      "distance_km": 0.8206009069920001,
+      "q95_max_f": "67.87220703125008"
+    },
+    {
+      "station_id": "KSFO",
+      "grid_latitude": 37.619642801319436,
+      "grid_longitude": 237.62995339392143,
+      "distance_km": 0.4421038825161677,
+      "q95_max_f": "64.27220703125008"
+    },
+    {
+      "station_id": "KSEA",
+      "grid_latitude": 47.45525933139037,
+      "grid_longitude": 237.6945761607201,
+      "distance_km": 0.643686609416384,
+      "q95_max_f": "62.832207031250064"
+    },
+    {
+      "station_id": "KPHX",
+      "grid_latitude": 33.436147428254856,
+      "grid_longitude": 247.98506967299159,
+      "distance_km": 0.3863919109890935,
+      "q95_max_f": "91.63220703125006"
+    },
+    {
+      "station_id": "KLAS",
+      "grid_latitude": 36.08002990385088,
+      "grid_longitude": 244.8595478433829,
+      "distance_km": 1.2109835226256584,
+      "q95_max_f": "82.27220703125008"
+    },
+    {
+      "station_id": "KMSP",
+      "grid_latitude": 44.88963741900614,
+      "grid_longitude": 266.78133920165544,
+      "distance_km": 0.6798367232397163,
+      "q95_max_f": "62.832207031250064"
+    },
+    {
+      "station_id": "KMSY",
+      "grid_latitude": 29.995240898966784,
+      "grid_longitude": 269.7293802815526,
+      "distance_km": 1.2406412489826544,
+      "q95_max_f": "85.15220703125001"
+    }
+  ]
+}

@@ -1,10 +1,20 @@
 import { frozenDates, V43_STATION_IDS } from "./v43-outcomes.ts";
 import { V43_EVALUATION_SCHEMA, V43_HORIZON_SCHEMA } from "./v43-evaluate.ts";
+import {
+  V43_F066_PLUS_THREE_BUFFER_F,
+  V43_F066_PLUS_THREE_DEVELOPMENT_END,
+  V43_F066_PLUS_THREE_EVALUATION_SCHEMA,
+  V43_F066_PLUS_THREE_HOLDOUT_END,
+  V43_F066_PLUS_THREE_HOLDOUT_START,
+  V43_F066_PLUS_THREE_IDENTITY,
+} from "./v43-f066-plus-three-evaluate.ts";
 
-export const V43_EXECUTION_PROXY_SCHEMA = "noaa_nbm_v43_q95_public_execution_proxy_v1";
+export const V43_EXECUTION_PROXY_SCHEMA = "noaa_nbm_v43_q95_public_execution_proxy_v2";
 export const V43_EXECUTION_PROXY_MAX_REQUESTS = 8_401;
 export const V43_EXECUTION_PROXY_DECISION_TIME_UTC = "20:05:00.000Z";
 export const V43_EXECUTION_PROXY_WINDOW_SECONDS = 300;
+export const V43_F066_PLUS_THREE_WINDOW_START_UTC = "14:00:00.000Z";
+export const V43_F066_PLUS_THREE_WINDOW_END_UTC = "18:00:00.000Z";
 export const V43_EXECUTION_PROXY_MAX_SERIES_PAGES = 10;
 export const V43_EXECUTION_PROXY_MAX_TRADE_PAGES = 3;
 const BASE_URL = "https://api.elections.kalshi.com/trade-api/v2";
@@ -13,6 +23,7 @@ const CURSOR = /^[A-Za-z0-9_-]+$/;
 
 type Row = Record<string, unknown>;
 type Horizon = "f042" | "f066";
+type ProxyPolicy = "f042-floor-q95" | "f066-floor-q95-plus-three";
 type RequestKind = "ordinary" | "candlestick";
 
 interface FrozenStation {
@@ -62,6 +73,7 @@ interface FrozenSelection {
   side: "no";
   decisionAt: Date;
   tradeWindowEnd: Date;
+  policy: ProxyPolicy;
 }
 
 interface RequestCapture {
@@ -136,7 +148,7 @@ export async function exportV43ExecutionProxy(input: {
   generatedAt?: Date;
 }) {
   const source = await validateSourceAndEvaluation(input.source, input.evaluation);
-  const frozenSelections = freezeSelections(source.rows);
+  const frozenSelections = freezeSelections(source.rows, source.policy);
   const expectedEventsBySeries = groupExpectedEvents(frozenSelections);
   const marketPages: Row[] = [], eventPages: Row[] = [];
   const markets: Row[] = [], events: Row[] = [];
@@ -173,11 +185,17 @@ export async function exportV43ExecutionProxy(input: {
   const selected = await attachProviderIdentities(frozenSelections, markets, events);
   const rows: Row[] = [];
   for (const selection of selected) {
-    if (!selection.contract || !selection.settlement || !selection.marketOpenAtDecision) {
+    if (!selection.contract || !selection.settlement || !selection.marketAvailableForWindow) {
       rows.push(rowWithoutNetworkEvidence(selection));
       continue;
     }
-    const quote = await fetchQuoteProxy(input.client, selection.contract.ticker, selection.frozen.decisionAt);
+    const quote = await fetchQuoteProxy(
+      input.client,
+      selection.contract.ticker,
+      selection.frozen.decisionAt,
+      selection.frozen.tradeWindowEnd,
+      selection.frozen.policy,
+    );
     const trades = await fetchPublicTrades(
       input.client,
       selection.contract.ticker,
@@ -189,6 +207,8 @@ export async function exportV43ExecutionProxy(input: {
       : trades.trades.filter((trade) =>
         Number(trade.no_price_dollars) <= Number(quote.no_ask_proxy) && Number(trade.count_fp) >= 1
       );
+    const frozenPriceBandProxy = source.policy === "f066-floor-q95-plus-three" && quote.supported &&
+      Number(quote.no_ask_proxy) >= 0.70 && Number(quote.no_ask_proxy) <= 0.97;
     rows.push({
       ...baseRow(selection),
       quote_proxy: quote,
@@ -197,6 +217,9 @@ export async function exportV43ExecutionProxy(input: {
         exact_contract_selected: true,
         exact_settlement_bound: true,
         causal_quote_proxy: quote.supported,
+        displayed_depth_verified: false,
+        exact_prospective_selection_reconstructed: false,
+        frozen_price_band_proxy: frozenPriceBandProxy,
         compatible_public_trade: compatibleTrades.length > 0,
         compatible_public_trade_count: compatibleTrades.length,
         provider_confirmed_fill: false,
@@ -224,28 +247,42 @@ export async function exportV43ExecutionProxy(input: {
     credential_required: false,
     production_database_access: false,
     horizon: source.horizon,
-    supported_horizon: "f042",
+    supported_horizon: source.horizon,
+    supported_policy_identity: source.policy === "f042-floor-q95"
+      ? "noaa_nbm_v43_f042_q95_floor_public_execution_proxy_v1"
+      : V43_F066_PLUS_THREE_IDENTITY,
     calibration_preflight: {
-      complete_100_dates: true,
+      complete_100_dates: source.policy === "f042-floor-q95",
+      complete_exact_50_holdout_dates: source.policy === "f066-floor-q95-plus-three",
       nonnegative_clustered_90_margin: true,
       passed_before_network: true,
     },
     source_artifact_sha256: source.sourceSha256,
     evaluation_artifact_sha256: source.evaluationSha256,
     frozen_policy: {
-      market_dates: { start: "2026-01-07", end: "2026-04-16", independent_dates: 100 },
+      market_dates: source.policy === "f042-floor-q95"
+        ? { start: "2026-01-07", end: "2026-04-16", independent_dates: 100 }
+        : { start: V43_F066_PLUS_THREE_HOLDOUT_START, end: V43_F066_PLUS_THREE_HOLDOUT_END, independent_dates: 50 },
       stations: 20,
-      station_dates: 2_000,
+      station_dates: source.rows.length,
       selection_before_quote_outcomes: true,
       condition: "greater",
       side: "no",
-      threshold: "floor(native_q95_f)",
-      decision_time: `prior_market_date_${V43_EXECUTION_PROXY_DECISION_TIME_UTC}`,
+      threshold: source.policy === "f042-floor-q95" ? "floor(native_q95_f)" : "floor(native_q95_f)+3F",
+      decision_time: source.policy === "f042-floor-q95"
+        ? `prior_market_date_${V43_EXECUTION_PROXY_DECISION_TIME_UTC}`
+        : `prior_market_date_[${V43_F066_PLUS_THREE_WINDOW_START_UTC},${V43_F066_PLUS_THREE_WINDOW_END_UTC})`,
       quote_period_minutes: 1,
-      quote_lookback_seconds: V43_EXECUTION_PROXY_WINDOW_SECONDS,
-      public_trade_window_seconds: V43_EXECUTION_PROXY_WINDOW_SECONDS,
-      no_ask_derivation: "1.0000 - latest_complete_yes_bid_close",
+      quote_lookback_seconds: source.policy === "f042-floor-q95" ? V43_EXECUTION_PROXY_WINDOW_SECONDS : null,
+      public_trade_window_seconds: source.policy === "f042-floor-q95"
+        ? V43_EXECUTION_PROXY_WINDOW_SECONDS
+        : 4 * 60 * 60,
+      no_ask_derivation: source.policy === "f042-floor-q95"
+        ? "1.0000 - latest_complete_yes_bid_close"
+        : "1.0000 - first_in_window_complete_yes_bid_close",
       no_ask_evidence_class: "one_minute_top_of_book_proxy_without_depth",
+      displayed_depth_required_for_f066_prospective_rule: source.policy === "f066-floor-q95-plus-three",
+      first_depth_qualified_quote_reconstructed: false,
     },
     request_policy: {
       maximum_requests: V43_EXECUTION_PROXY_MAX_REQUESTS,
@@ -267,6 +304,8 @@ export async function exportV43ExecutionProxy(input: {
       exact_settlements_bound: metric("exact_settlement_bound"),
       causal_quote_proxies: metric("causal_quote_proxy"),
       compatible_public_trade_proxies: metric("compatible_public_trade"),
+      frozen_price_band_quote_proxies: metric("frozen_price_band_proxy"),
+      exact_prospective_selections_reconstructed: metric("exact_prospective_selection_reconstructed"),
       provider_confirmed_fills: 0,
     },
     evidence_boundaries: {
@@ -275,6 +314,8 @@ export async function exportV43ExecutionProxy(input: {
       public_trade_exposes_taker_side_and_price: true,
       public_trade_exposes_resting_depth_identity: false,
       historical_depth_available: false,
+      exact_f066_first_depth_qualified_selection_available: false,
+      f066_price_band_proxy_is_exact_net_ev: false,
     },
     rows,
   };
@@ -289,20 +330,30 @@ export async function writeExecutionProxyCreateOnce(path: string, artifact: unkn
   await verifyArtifactHash(value, expected, "execution proxy artifact");
   if (
     value.schema !== V43_EXECUTION_PROXY_SCHEMA || value.research_only !== true ||
-    value.provider_confirmed_fill_evidence !== false || value.trading_authority !== false ||
-    value.production_database_access !== false
+    value.executable_depth_evidence !== false || value.provider_confirmed_fill_evidence !== false ||
+    value.recommendation_authority !== false || value.order_authority !== false ||
+    value.capital_risk_authority !== false || value.trading_authority !== false ||
+    value.production_activation !== false || value.production_database_access !== false
   ) throw new Error("execution proxy artifact authority is invalid");
   const bytes = new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`);
   await Deno.writeFile(output, bytes, { createNew: true });
   return await sha256(bytes);
 }
 
-export function freezeSelections(rows: SourceRow[]): FrozenSelection[] {
+export function freezeSelections(rows: SourceRow[], policy: ProxyPolicy = "f042-floor-q95"): FrozenSelection[] {
   const stationById = new Map(V43_EXECUTION_PROXY_STATIONS.map((station) => [station.stationId, station]));
   return rows.map((row) => {
     const station = stationById.get(row.stationId);
     if (!station) throw new Error(`station ${row.stationId} has no exact Kalshi series identity`);
-    const decisionAt = new Date(`${shiftDate(row.marketDate, -1)}T${V43_EXECUTION_PROXY_DECISION_TIME_UTC}`);
+    const priorDate = shiftDate(row.marketDate, -1);
+    const decisionAt = new Date(
+      `${priorDate}T${
+        policy === "f042-floor-q95" ? V43_EXECUTION_PROXY_DECISION_TIME_UTC : V43_F066_PLUS_THREE_WINDOW_START_UTC
+      }`,
+    );
+    const tradeWindowEnd = policy === "f042-floor-q95"
+      ? new Date(decisionAt.getTime() + V43_EXECUTION_PROXY_WINDOW_SECONDS * 1_000)
+      : new Date(`${priorDate}T${V43_F066_PLUS_THREE_WINDOW_END_UTC}`);
     return {
       station,
       marketDate: row.marketDate,
@@ -312,7 +363,8 @@ export function freezeSelections(rows: SourceRow[]): FrozenSelection[] {
       condition: "greater",
       side: "no",
       decisionAt,
-      tradeWindowEnd: new Date(decisionAt.getTime() + V43_EXECUTION_PROXY_WINDOW_SECONDS * 1_000),
+      tradeWindowEnd,
+      policy,
     };
   });
 }
@@ -386,10 +438,13 @@ async function attachProviderIdentities(selections: FrozenSelection[], markets: 
     if (eventCandidates.length > 1) throw new Error(`duplicate exact event ${frozen.eventTicker}`);
     const contract = candidates.length === 1 ? await exactContract(candidates[0], frozen) : null;
     const settlement = eventCandidates.length === 1 ? await exactSettlement(eventCandidates[0], frozen) : null;
-    const marketOpenAtDecision = contract !== null &&
-      new Date(contract.open_time).getTime() <= frozen.decisionAt.getTime() &&
-      frozen.decisionAt.getTime() < new Date(contract.close_time).getTime();
-    results.push({ frozen, contract, settlement, marketOpenAtDecision });
+    const marketAvailableForWindow = contract !== null &&
+      (frozen.policy === "f042-floor-q95"
+        ? new Date(contract.open_time).getTime() <= frozen.decisionAt.getTime() &&
+          frozen.decisionAt.getTime() < new Date(contract.close_time).getTime()
+        : new Date(contract.open_time).getTime() < frozen.tradeWindowEnd.getTime() &&
+          frozen.decisionAt.getTime() < new Date(contract.close_time).getTime());
+    results.push({ frozen, contract, settlement, marketAvailableForWindow });
   }
   return results;
 }
@@ -452,13 +507,24 @@ async function exactSettlement(event: Row, frozen: FrozenSelection) {
   };
 }
 
-async function fetchQuoteProxy(client: BoundedPublicKalshiClient, ticker: string, decisionAt: Date) {
+async function fetchQuoteProxy(
+  client: BoundedPublicKalshiClient,
+  ticker: string,
+  decisionAt: Date,
+  windowEnd: Date,
+  policy: ProxyPolicy,
+) {
   const decisionSeconds = Math.floor(decisionAt.getTime() / 1_000);
+  const windowEndSeconds = Math.floor(windowEnd.getTime() / 1_000);
+  const startSeconds = policy === "f042-floor-q95"
+    ? decisionSeconds - V43_EXECUTION_PROXY_WINDOW_SECONDS
+    : decisionSeconds + 1;
+  const endSeconds = policy === "f042-floor-q95" ? decisionSeconds : windowEndSeconds - 1;
   const response = await client.request(
     `/historical/markets/${encodeURIComponent(ticker)}/candlesticks`,
     {
-      start_ts: String(decisionSeconds - V43_EXECUTION_PROXY_WINDOW_SECONDS),
-      end_ts: String(decisionSeconds),
+      start_ts: String(startSeconds),
+      end_ts: String(endSeconds),
       period_interval: "1",
     },
     "candlestick",
@@ -467,25 +533,41 @@ async function fetchQuoteProxy(client: BoundedPublicKalshiClient, ticker: string
   const seen = new Set<number>();
   const candles = array(response.payload.candlesticks, `${ticker} candlesticks`).map((raw) => {
     const candle = object(raw, `${ticker} candle`), end = Number(candle.end_period_ts);
-    if (!Number.isSafeInteger(end) || end > decisionSeconds || seen.has(end)) {
+    if (
+      !Number.isSafeInteger(end) || end < startSeconds || end > endSeconds ||
+      (policy === "f066-floor-q95-plus-three" && (end <= decisionSeconds || end >= windowEndSeconds)) || seen.has(end)
+    ) {
       throw new Error(`candlestick timestamp is invalid for ${ticker}`);
     }
     seen.add(end);
     return candle;
   }).sort((left, right) => Number(left.end_period_ts) - Number(right.end_period_ts));
-  const selected = candles.at(-1) ?? null;
-  const age = selected ? decisionSeconds - Number(selected.end_period_ts) : null;
+  const selected = policy === "f042-floor-q95" ? candles.at(-1) ?? null : candles.find((candle) => {
+    const value = decimalField(object(candle.yes_bid, `${ticker} YES bid`), "close");
+    return value !== null;
+  }) ?? null;
+  const age = selected
+    ? policy === "f042-floor-q95"
+      ? decisionSeconds - Number(selected.end_period_ts)
+      : Number(selected.end_period_ts) - decisionSeconds
+    : null;
   const yesBid = selected ? decimalField(object(selected.yes_bid, `${ticker} YES bid`), "close") : null;
   const yesAsk = selected ? decimalField(object(selected.yes_ask, `${ticker} YES ask`), "close") : null;
   const noAsk = yesBid === null ? null : complement(yesBid);
   return {
     evidence_class: "one_minute_top_of_book_proxy_without_depth",
     period_semantics: "OHLC for the one-minute period ending at end_period_ts",
-    selected_at_or_before_decision: true,
-    supported: selected !== null && age !== null && age <= V43_EXECUTION_PROXY_WINDOW_SECONDS && noAsk !== null,
+    selection_semantics: policy === "f042-floor-q95"
+      ? "latest_complete_candle_at_or_before_fixed_decision"
+      : "first_complete_candle_with_yes_bid_close_strictly_inside_frozen_window",
+    selected_at_or_before_decision: policy === "f042-floor-q95",
+    selected_strictly_inside_window: policy === "f066-floor-q95-plus-three",
+    supported: selected !== null && age !== null &&
+      (policy === "f042-floor-q95" ? age <= V43_EXECUTION_PROXY_WINDOW_SECONDS : age < 4 * 60 * 60) && noAsk !== null,
     decision_at: decisionAt.toISOString(),
     candle_end_at: selected ? new Date(Number(selected.end_period_ts) * 1_000).toISOString() : null,
-    age_seconds: age,
+    age_seconds: policy === "f042-floor-q95" ? age : null,
+    seconds_after_window_start: policy === "f066-floor-q95-plus-three" ? age : null,
     yes_bid_close: yesBid,
     yes_ask_close: yesAsk,
     no_ask_proxy: noAsk,
@@ -569,7 +651,7 @@ function rowWithoutNetworkEvidence(selection: Awaited<ReturnType<typeof attachPr
   const blockers = [
     ...(!selection.contract ? ["EXACT_GREATER_CONTRACT_MISSING"] : []),
     ...(!selection.settlement ? ["EXACT_NWS_SETTLEMENT_IDENTITY_MISSING"] : []),
-    ...(selection.contract && !selection.marketOpenAtDecision ? ["MARKET_NOT_OPEN_AT_FROZEN_DECISION"] : []),
+    ...(selection.contract && !selection.marketAvailableForWindow ? ["MARKET_UNAVAILABLE_DURING_FROZEN_WINDOW"] : []),
   ];
   return {
     ...baseRow(selection),
@@ -580,6 +662,9 @@ function rowWithoutNetworkEvidence(selection: Awaited<ReturnType<typeof attachPr
       exact_contract_selected: selection.contract !== null,
       exact_settlement_bound: selection.settlement !== null,
       causal_quote_proxy: false,
+      displayed_depth_verified: false,
+      exact_prospective_selection_reconstructed: false,
+      frozen_price_band_proxy: false,
       compatible_public_trade: false,
       compatible_public_trade_count: 0,
       provider_confirmed_fill: false,
@@ -601,7 +686,7 @@ function baseRow(selection: Awaited<ReturnType<typeof attachProviderIdentities>>
     trade_window_end_exclusive: selection.frozen.tradeWindowEnd.toISOString(),
     contract: selection.contract,
     settlement: selection.settlement,
-    market_open_at_decision: selection.marketOpenAtDecision,
+    market_available_for_frozen_window: selection.marketAvailableForWindow,
   };
 }
 
@@ -618,11 +703,6 @@ async function validateSourceAndEvaluation(sourceValue: unknown, evaluationValue
     ? "noaa_nbm_v43_blend_qmd_12z_f042_native_max_t_q95_historical_calibration_v1"
     : "noaa_nbm_v43_blend_qmd_12z_f066_native_max_t_q95_historical_calibration_v1";
   const coverage = object(source.coverage, "source coverage"), dateWindow = object(source.date_window, "source window");
-  const evaluationWindow = object(evaluation.date_window, "evaluation window");
-  const linked = object(evaluation.horizon_artifact_sha256, "evaluation horizon hashes");
-  const horizonEvaluations = array(evaluation.evaluations, "evaluation horizons")
-    .map((value) => object(value, "horizon evaluation"))
-    .filter((value) => value.horizon === horizon);
   if (
     source.schema !== V43_HORIZON_SCHEMA || source.source_profile !== `v43-${horizon}` ||
     source.source_product !== expectedProduct ||
@@ -630,25 +710,33 @@ async function validateSourceAndEvaluation(sourceValue: unknown, evaluationValue
     source.trading_authority !== false || coverage.stations !== 20 || coverage.market_dates !== 100 ||
     coverage.station_dates !== 2_000 || coverage.complete !== true || dateWindow.start !== "2026-01-07" ||
     dateWindow.end !== "2026-04-16" || dateWindow.independent_market_dates !== 100 ||
-    evaluation.schema !== V43_EVALUATION_SCHEMA || evaluation.research_only !== true ||
-    evaluation.trading_authority !== false || evaluationWindow.start !== "2026-01-07" ||
-    evaluationWindow.end !== "2026-04-16" || linked[horizon] !== sourceSha256 || horizonEvaluations.length !== 1 ||
     !Array.isArray(source.rows) || source.rows.length !== 2_000
-  ) throw new Error("v4.3 source/evaluation identity or linkage is invalid");
-  const selectedEvaluation = horizonEvaluations[0], gates = object(selectedEvaluation.gates, "horizon gates");
-  if (
-    selectedEvaluation.artifact_sha256 !== sourceSha256 || selectedEvaluation.rows !== 2_000 ||
-    selectedEvaluation.independent_market_dates !== 100 || gates.complete_100_dates !== true ||
-    gates.nonnegative_clustered_90_margin !== true
-  ) {
-    throw new Error(
-      "v4.3 calibration preflight failed: complete 100 dates and nonnegative clustered 90 margin are required",
-    );
-  }
-  if (horizon === "f066") {
-    throw new Error(
-      "f066 execution proxy is unsupported: its >=ceil(Q95), prior-day [14:00Z,18:00Z) first-quote, depth-at-least-one rule cannot be reconstructed from depth-free historical candles",
-    );
+  ) throw new Error("v4.3 source identity or coverage is invalid");
+
+  const policy: ProxyPolicy = horizon === "f042" ? "f042-floor-q95" : "f066-floor-q95-plus-three";
+  if (policy === "f042-floor-q95") {
+    const evaluationWindow = object(evaluation.date_window, "evaluation window");
+    const linked = object(evaluation.horizon_artifact_sha256, "evaluation horizon hashes");
+    const horizonEvaluations = array(evaluation.evaluations, "evaluation horizons")
+      .map((value) => object(value, "horizon evaluation"))
+      .filter((value) => value.horizon === horizon);
+    if (
+      evaluation.schema !== V43_EVALUATION_SCHEMA || evaluation.research_only !== true ||
+      evaluation.trading_authority !== false || evaluationWindow.start !== "2026-01-07" ||
+      evaluationWindow.end !== "2026-04-16" || linked[horizon] !== sourceSha256 || horizonEvaluations.length !== 1
+    ) throw new Error("v4.3 source/evaluation identity or linkage is invalid");
+    const selectedEvaluation = horizonEvaluations[0], gates = object(selectedEvaluation.gates, "horizon gates");
+    if (
+      selectedEvaluation.artifact_sha256 !== sourceSha256 || selectedEvaluation.rows !== 2_000 ||
+      selectedEvaluation.independent_market_dates !== 100 || gates.complete_100_dates !== true ||
+      gates.nonnegative_clustered_90_margin !== true
+    ) {
+      throw new Error(
+        "v4.3 calibration preflight failed: complete 100 dates and nonnegative clustered 90 margin are required",
+      );
+    }
+  } else {
+    validateF066PlusThreeEvaluation(evaluation, sourceSha256);
   }
 
   const dates = frozenDates(), expectedStations = new Set<string>(V43_STATION_IDS), seen = new Set<string>();
@@ -664,10 +752,61 @@ async function validateSourceAndEvaluation(sourceValue: unknown, evaluationValue
       !SHA256.test(String(row.message_sha256 ?? "")) || seen.has(key)
     ) throw new Error("source row identity is invalid");
     seen.add(key);
-    return { stationId, marketDate, q95MaxF, thresholdF: Math.floor(q95MaxF) };
+    return {
+      stationId,
+      marketDate,
+      q95MaxF,
+      thresholdF: Math.floor(q95MaxF) + (policy === "f066-floor-q95-plus-three" ? V43_F066_PLUS_THREE_BUFFER_F : 0),
+    };
   });
   if (seen.size !== 2_000) throw new Error("source station/date coverage is incomplete");
-  return { horizon: horizon as Horizon, sourceSha256, evaluationSha256, rows };
+  const selectedRows = policy === "f066-floor-q95-plus-three"
+    ? rows.filter((row) =>
+      row.marketDate >= V43_F066_PLUS_THREE_HOLDOUT_START && row.marketDate <= V43_F066_PLUS_THREE_HOLDOUT_END
+    )
+    : rows;
+  if (
+    policy === "f066-floor-q95-plus-three" &&
+    (selectedRows.length !== 1_000 || new Set(selectedRows.map((row) => row.marketDate)).size !== 50 ||
+      selectedRows.some((row) => row.marketDate <= V43_F066_PLUS_THREE_DEVELOPMENT_END))
+  ) throw new Error("f066 plus-three execution proxy requires the exact untouched 50-date holdout");
+  return { horizon: horizon as Horizon, policy, sourceSha256, evaluationSha256, rows: selectedRows };
+}
+
+function validateF066PlusThreeEvaluation(evaluation: Row, sourceSha256: string) {
+  const holdout = object(evaluation.holdout_window, "f066 plus-three holdout window");
+  const development = object(evaluation.development_window, "f066 plus-three development window");
+  const threshold = object(evaluation.threshold_policy, "f066 plus-three threshold policy");
+  const gates = object(evaluation.gates, "f066 plus-three gates");
+  const requiredGates = [
+    "complete_exact_50_dates",
+    "nonnegative_clustered_90_margin",
+    "nonnegative_clustered_95_margin",
+    "maximum_station_share_at_most_0_05",
+    "maximum_date_share_at_most_0_02",
+    "all_station_leave_one_out_90_nonnegative",
+    "all_station_leave_one_out_95_nonnegative",
+  ];
+  if (
+    evaluation.schema !== V43_F066_PLUS_THREE_EVALUATION_SCHEMA ||
+    evaluation.identity !== V43_F066_PLUS_THREE_IDENTITY || evaluation.source_artifact_sha256 !== sourceSha256 ||
+    evaluation.evidence_class !== "adaptive_historical_holdout" || evaluation.adaptive_selection !== true ||
+    evaluation.independent_oos !== false || evaluation.profitability_claim !== false ||
+    evaluation.execution_evidence !== false || evaluation.provider_confirmed_fill_evidence !== false ||
+    evaluation.research_only !== true || evaluation.recommendation_authority !== false ||
+    evaluation.order_authority !== false || evaluation.capital_risk_authority !== false ||
+    evaluation.trading_authority !== false || evaluation.production_activation !== false ||
+    threshold.arithmetic !== "official_integer_tmax_f <= floor(native_f066_q95_f) + 3" ||
+    threshold.buffer_f !== V43_F066_PLUS_THREE_BUFFER_F || threshold.fixed_probability !== 0.95 ||
+    threshold.adjacent_plus_2_identity_accepted !== false ||
+    development.start !== "2026-01-07" || development.end !== V43_F066_PLUS_THREE_DEVELOPMENT_END ||
+    development.holdout_rows_credited !== 0 || development.holdout_market_dates_credited !== 0 ||
+    holdout.start !== V43_F066_PLUS_THREE_HOLDOUT_START || holdout.end !== V43_F066_PLUS_THREE_HOLDOUT_END ||
+    holdout.station_dates !== 1_000 || holdout.independent_market_dates !== 50 || holdout.stations !== 20
+  ) throw new Error("f066 plus-three evaluation identity, linkage, or authority is invalid");
+  if (requiredGates.some((gate) => gates[gate] !== true)) {
+    throw new Error("f066 plus-three calibration preflight requires every frozen 50-date holdout gate");
+  }
 }
 
 function validateCutoff(payload: Row) {
