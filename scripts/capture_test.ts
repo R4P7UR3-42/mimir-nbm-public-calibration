@@ -1,10 +1,16 @@
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { parseIndex, scheduledMarketDate, selectDecodedIdentity } from "./capture.ts";
+import { parseIndex, scheduledF066MarketDate, scheduledMarketDate, selectDecodedIdentity } from "./capture.ts";
 
 Deno.test("scheduled capture derives the next market date from the UTC run date", () => {
   assertEquals(scheduledMarketDate(new Date("2026-09-01T20:20:00.000Z")), "2026-09-02");
   assertEquals(scheduledMarketDate(new Date("2026-12-31T23:59:59.999Z")), "2027-01-01");
   assertThrows(() => scheduledMarketDate(new Date("invalid")), Error, "clock");
+});
+
+Deno.test("scheduled f066 capture derives the market date two days after the UTC run date", () => {
+  assertEquals(scheduledF066MarketDate(new Date("2026-09-01T20:35:00.000Z")), "2026-09-03");
+  assertEquals(scheduledF066MarketDate(new Date("2026-12-31T23:59:59.999Z")), "2027-01-02");
+  assertThrows(() => scheduledF066MarketDate(new Date("invalid")), Error, "clock");
 });
 
 Deno.test("workflow preserves bounded daily source-only capture contract", async () => {
@@ -30,6 +36,26 @@ Deno.test("workflow preserves bounded daily source-only capture contract", async
       "evidence/${{ steps.market-date.outputs.market_date }}/provenance.json",
     ]
   ) assertStringIncludes(workflow, required);
+  assertEquals(/^\s+push:/m.test(workflow), false);
+});
+
+Deno.test("f066 workflow is source-only, create-once, and isolated from f042", async () => {
+  const workflow = await Deno.readTextFile(".github/workflows/f066-daily-source.yml");
+  for (
+    const required of [
+      'cron: "35 20 * * *"',
+      "scheduledF066MarketDate(new Date())",
+      "--source-profile f066",
+      "--max-requests 2",
+      ".trading_authority == false",
+      "scripts/persist.ts preflight",
+      "scripts/persist.ts preserve",
+      "evidence-f066/$MARKET_DATE",
+      'git push origin "HEAD:${GITHUB_REF_NAME}"',
+      "cancel-in-progress: false",
+    ]
+  ) assertStringIncludes(workflow, required);
+  assertEquals(workflow.includes("evidence/$MARKET_DATE"), false);
   assertEquals(/^\s+push:/m.test(workflow), false);
 });
 
@@ -80,4 +106,29 @@ Deno.test("rejects Q90, duplicate, suffix drift, and terminal target", () => {
   assertThrows(() => parseIndex(exact, "2026-08-31"), Error, "terminal");
   assertThrows(() => parseIndex(`${exact}\n${exact}\n264:496317844:x`, "2026-08-31"), Error, "exactly one");
   assertThrows(() => parseIndex(`${exact}:drift\n264:496317844:x`, "2026-08-31"), Error, "exactly one");
+});
+
+Deno.test("selects only the exact f066 Q95 identity", () => {
+  const selected = parseIndex(
+    [
+      "262:484430000:d=2026083012:TMP:2 m above ground:48-66 hour max fcst:90% level",
+      "263:486715692:d=2026083012:TMP:2 m above ground:48-66 hour max fcst:95% level",
+      "264:489000829:d=2026083012:TMP:2 m above ground:48-66 hour max fcst:100% level",
+    ].join("\n"),
+    "2026-08-30",
+    "f066",
+  );
+  assertEquals(selected.rangeStart, 486_715_692);
+  assertEquals(selected.rangeEnd, 489_000_828);
+  assertEquals(selected.messageLength, 2_285_137);
+  assertThrows(
+    () =>
+      parseIndex(
+        "263:486715692:d=2026083012:TMP:2 m above ground:24-42 hour max fcst:95% level\n264:489000829:x",
+        "2026-08-30",
+        "f066",
+      ),
+    Error,
+    "exactly one",
+  );
 });

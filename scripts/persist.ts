@@ -1,8 +1,23 @@
-const DURABLE_SCHEMA = "noaa_nbm_q95_public_durable_provenance_v1";
 const SOURCE_REPOSITORY = "R4P7UR3-42/mimir-nbm-public-calibration";
-const WORKFLOW_PATH = ".github/workflows/one-date-canary.yml";
 const SHA256 = /^[a-f0-9]{64}$/;
 const GIT_SHA = /^[a-f0-9]{40}$/;
+
+type SourceProfileName = "f042" | "f066";
+
+const SOURCE_PROFILES = {
+  f042: {
+    durableSchema: "noaa_nbm_q95_public_durable_provenance_v1",
+    evidenceSchema: "noaa_nbm_native_max_t_q95_public_canary_v1",
+    workflowPath: ".github/workflows/one-date-canary.yml",
+    namespace: "evidence",
+  },
+  f066: {
+    durableSchema: "noaa_nbm_q95_f066_public_durable_provenance_v1",
+    evidenceSchema: "noaa_nbm_native_max_t_q95_f066_public_canary_v1",
+    workflowPath: ".github/workflows/f066-daily-source.yml",
+    namespace: "evidence-f066",
+  },
+} as const;
 
 interface PreserveInput {
   root: string;
@@ -11,12 +26,17 @@ interface PreserveInput {
   workflowSourceSha: string;
   workflowRunId: string;
   workflowRunAttempt: number;
+  sourceProfile?: SourceProfileName;
 }
 
 if (import.meta.main) await main(Deno.args);
 
-export async function inspectDurableEvidence(root: string, marketDate: string) {
-  const path = durablePath(root, marketDate);
+export async function inspectDurableEvidence(
+  root: string,
+  marketDate: string,
+  sourceProfile: SourceProfileName = "f042",
+) {
+  const path = durablePath(root, marketDate, sourceProfile);
   try {
     const stat = await Deno.lstat(path);
     if (!stat.isDirectory || stat.isSymlink) throw new Error("durable evidence path is not a regular directory");
@@ -40,13 +60,15 @@ export async function inspectDurableEvidence(root: string, marketDate: string) {
   if (await Deno.readTextFile(`${path}/SHA256SUMS`) !== expectedSums) {
     throw new Error("durable evidence checksum manifest does not reproduce");
   }
-  validateEvidence(JSON.parse(new TextDecoder().decode(evidenceBytes)), marketDate);
-  validateProvenance(JSON.parse(new TextDecoder().decode(provenanceBytes)), marketDate, evidenceSha);
+  validateEvidence(JSON.parse(new TextDecoder().decode(evidenceBytes)), marketDate, sourceProfile);
+  validateProvenance(JSON.parse(new TextDecoder().decode(provenanceBytes)), marketDate, evidenceSha, sourceProfile);
   return "existing" as const;
 }
 
 export async function preserveEvidence(input: PreserveInput) {
-  if (await inspectDurableEvidence(input.root, input.marketDate) === "existing") {
+  const sourceProfile = input.sourceProfile ?? "f042";
+  const profile = SOURCE_PROFILES[sourceProfile];
+  if (await inspectDurableEvidence(input.root, input.marketDate, sourceProfile) === "existing") {
     throw new Error("durable evidence already exists and cannot be overwritten");
   }
   if (
@@ -60,13 +82,13 @@ export async function preserveEvidence(input: PreserveInput) {
   if (await Deno.readTextFile(`${input.sourceDir}/SHA256SUMS`) !== `${evidenceSha}  evidence.json\n`) {
     throw new Error("source evidence checksum does not reproduce");
   }
-  validateEvidence(JSON.parse(new TextDecoder().decode(sourceEvidence)), input.marketDate);
+  validateEvidence(JSON.parse(new TextDecoder().decode(sourceEvidence)), input.marketDate, sourceProfile);
 
-  const relativePath = `evidence/${input.marketDate}`;
+  const relativePath = `${profile.namespace}/${input.marketDate}`;
   const provenance = {
-    schema: DURABLE_SCHEMA,
+    schema: profile.durableSchema,
     source_repository: SOURCE_REPOSITORY,
-    workflow_path: WORKFLOW_PATH,
+    workflow_path: profile.workflowPath,
     workflow_source_sha: input.workflowSourceSha,
     workflow_run_id: input.workflowRunId,
     workflow_run_attempt: input.workflowRunAttempt,
@@ -87,7 +109,7 @@ export async function preserveEvidence(input: PreserveInput) {
   };
   const provenanceBytes = new TextEncoder().encode(`${JSON.stringify(provenance, null, 2)}\n`);
   const provenanceSha = await sha256(provenanceBytes);
-  const evidenceRoot = `${input.root.replace(/\/+$/, "")}/evidence`;
+  const evidenceRoot = `${input.root.replace(/\/+$/, "")}/${profile.namespace}`;
   await Deno.mkdir(evidenceRoot, { recursive: true });
   const staging = await Deno.makeTempDir({ dir: evidenceRoot, prefix: `.${input.marketDate}-` });
   try {
@@ -98,24 +120,30 @@ export async function preserveEvidence(input: PreserveInput) {
       `${evidenceSha}  evidence.json\n${provenanceSha}  provenance.json\n`,
       { createNew: true },
     );
-    await Deno.rename(staging, durablePath(input.root, input.marketDate));
+    await Deno.rename(staging, durablePath(input.root, input.marketDate, sourceProfile));
   } catch (error) {
     await Deno.remove(staging, { recursive: true }).catch(() => undefined);
     throw error;
   }
-  if (await inspectDurableEvidence(input.root, input.marketDate) !== "existing") {
+  if (await inspectDurableEvidence(input.root, input.marketDate, sourceProfile) !== "existing") {
     throw new Error("durable evidence preservation did not verify");
   }
   return relativePath;
 }
 
-function validateEvidence(value: unknown, marketDate: string) {
+function validateEvidence(value: unknown, marketDate: string, sourceProfile: SourceProfileName) {
+  const profile = SOURCE_PROFILES[sourceProfile];
   const evidence = object(value, "evidence");
   const source = object(evidence.source, "evidence source");
   const requests = object(evidence.request_policy, "request policy");
   const coverage = object(evidence.coverage, "coverage");
+  const f066IdentityIsValid = sourceProfile !== "f066" ||
+    (source.source_profile === "f066" &&
+      source.source_product === "noaa_nbm_blend_qmd_12z_f066_native_max_t_q95_v1" &&
+      source.valid_interval_start === `${marketDate}T12:00:00.000Z` &&
+      source.valid_interval_end === `${shiftDate(marketDate, 1)}T06:00:00.000Z`);
   if (
-    evidence.schema !== "noaa_nbm_native_max_t_q95_public_canary_v1" || evidence.research_only !== true ||
+    evidence.schema !== profile.evidenceSchema || evidence.research_only !== true ||
     evidence.source_only !== true || evidence.credential_required !== false || evidence.private_data_access !== false ||
     evidence.provider_confirmed_fill_evidence !== false || evidence.recommendation_authority !== false ||
     evidence.order_authority !== false || evidence.capital_risk_authority !== false ||
@@ -123,19 +151,25 @@ function validateEvidence(value: unknown, marketDate: string) {
     evidence.active_trading_capability_changed !== false || evidence.automatic_production_activation !== false ||
     source.market_date !== marketDate || requests.maximum_requests !== 2 || requests.actual_requests !== 2 ||
     requests.no_retry !== true || requests.terminal_http_429 !== true || coverage.stations !== 20 ||
-    coverage.complete !== true || !Array.isArray(evidence.rows) || evidence.rows.length !== 20
+    coverage.complete !== true || !Array.isArray(evidence.rows) || evidence.rows.length !== 20 || !f066IdentityIsValid
   ) throw new Error("evidence authority, identity, request budget, or coverage is invalid");
 }
 
-function validateProvenance(value: unknown, marketDate: string, evidenceSha: string) {
+function validateProvenance(
+  value: unknown,
+  marketDate: string,
+  evidenceSha: string,
+  sourceProfile: SourceProfileName,
+) {
+  const profile = SOURCE_PROFILES[sourceProfile];
   const provenance = object(value, "provenance");
   if (
-    provenance.schema !== DURABLE_SCHEMA || provenance.source_repository !== SOURCE_REPOSITORY ||
-    provenance.workflow_path !== WORKFLOW_PATH || !GIT_SHA.test(String(provenance.workflow_source_sha ?? "")) ||
+    provenance.schema !== profile.durableSchema || provenance.source_repository !== SOURCE_REPOSITORY ||
+    provenance.workflow_path !== profile.workflowPath || !GIT_SHA.test(String(provenance.workflow_source_sha ?? "")) ||
     !/^\d+$/.test(String(provenance.workflow_run_id ?? "")) ||
     !Number.isInteger(provenance.workflow_run_attempt) || Number(provenance.workflow_run_attempt) < 1 ||
     provenance.market_date !== marketDate || provenance.evidence_sha256 !== evidenceSha || !SHA256.test(evidenceSha) ||
-    provenance.create_once_commit_path !== `evidence/${marketDate}` || provenance.research_only !== true ||
+    provenance.create_once_commit_path !== `${profile.namespace}/${marketDate}` || provenance.research_only !== true ||
     provenance.source_only !== true || provenance.credential_required !== false ||
     provenance.provider_confirmed_fill_evidence !== false || provenance.recommendation_authority !== false ||
     provenance.order_authority !== false || provenance.capital_risk_authority !== false ||
@@ -144,15 +178,22 @@ function validateProvenance(value: unknown, marketDate: string, evidenceSha: str
   ) throw new Error("durable provenance identity or authority is invalid");
 }
 
-function durablePath(root: string, marketDate: string) {
+function durablePath(root: string, marketDate: string, sourceProfile: SourceProfileName) {
   if (!isIsoDate(marketDate)) throw new Error("market date is malformed");
-  return `${root.replace(/\/+$/, "")}/evidence/${marketDate}`;
+  return `${root.replace(/\/+$/, "")}/${SOURCE_PROFILES[sourceProfile].namespace}/${marketDate}`;
 }
 
 function isIsoDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function shiftDate(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) throw new Error("market date is malformed");
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function object(value: unknown, label: string) {
@@ -172,11 +213,13 @@ async function main(raw: string[]) {
   const command = raw[0];
   const args = parseArgs(raw.slice(1));
   const marketDate = args.get("--market-date") ?? "";
-  if (command === "preflight" && args.size === 1) {
-    console.log(await inspectDurableEvidence(".", marketDate));
+  const sourceProfile = parseSourceProfile(args.get("--source-profile") ?? "f042");
+  const expectedSize = args.has("--source-profile") ? 2 : 1;
+  if (command === "preflight" && args.size === expectedSize) {
+    console.log(await inspectDurableEvidence(".", marketDate, sourceProfile));
     return;
   }
-  if (command === "preserve" && args.size === 5) {
+  if (command === "preserve" && args.size === expectedSize + 4) {
     console.log(
       await preserveEvidence({
         root: ".",
@@ -185,11 +228,17 @@ async function main(raw: string[]) {
         workflowSourceSha: args.get("--workflow-source-sha") ?? "",
         workflowRunId: args.get("--workflow-run-id") ?? "",
         workflowRunAttempt: Number(args.get("--workflow-run-attempt")),
+        sourceProfile,
       }),
     );
     return;
   }
   throw new Error("persistence command or arguments are malformed");
+}
+
+function parseSourceProfile(value: string): SourceProfileName {
+  if (value !== "f042" && value !== "f066") throw new Error("source profile is malformed");
+  return value;
 }
 
 function parseArgs(raw: string[]) {

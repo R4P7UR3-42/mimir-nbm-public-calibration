@@ -1,8 +1,27 @@
-const CAPTURE_SCHEMA = "noaa_nbm_native_max_t_q95_public_canary_v1";
-const DECODE_SCHEMA = "noaa_nbm_native_max_t_q95_decode_v1";
-const SOURCE_PRODUCT = "noaa_nbm_blend_qmd_12z_f042_native_max_t_q95_v1";
-const INDEX_IDENTITY = "TMP:2 m above ground:24-42 hour max fcst:95% level";
 const ECCODES_VERSION = "2.48.0";
+
+export type SourceProfileName = "f042" | "f066";
+
+const SOURCE_PROFILES = {
+  f042: {
+    captureSchema: "noaa_nbm_native_max_t_q95_public_canary_v1",
+    decodeSchema: "noaa_nbm_native_max_t_q95_decode_v1",
+    sourceProduct: "noaa_nbm_blend_qmd_12z_f042_native_max_t_q95_v1",
+    indexIdentity: "TMP:2 m above ground:24-42 hour max fcst:95% level",
+    runOffsetDays: -1,
+    forecastHour: 42,
+    stepRange: "24-42",
+  },
+  f066: {
+    captureSchema: "noaa_nbm_native_max_t_q95_f066_public_canary_v1",
+    decodeSchema: "noaa_nbm_native_max_t_q95_f066_decode_v1",
+    sourceProduct: "noaa_nbm_blend_qmd_12z_f066_native_max_t_q95_v1",
+    indexIdentity: "TMP:2 m above ground:48-66 hour max fcst:95% level",
+    runOffsetDays: -2,
+    forecastHour: 66,
+    stepRange: "48-66",
+  },
+} as const;
 
 interface Station {
   station_id: string;
@@ -36,20 +55,22 @@ if (import.meta.main) await main(Deno.args);
 
 async function main(rawArgs: string[]) {
   const args = parseArgs(rawArgs);
+  const profile = SOURCE_PROFILES[args.sourceProfile];
   const outputDir = validateOutputDir(args.outputDir);
   const stations = JSON.parse(await Deno.readTextFile("data/stations.json")) as Station[];
   validateStations(stations);
   await Deno.mkdir(outputDir, { recursive: true });
-  const runDate = shiftDate(args.marketDate, -1);
+  const runDate = shiftDate(args.marketDate, profile.runOffsetDays);
   const compactDate = runDate.replaceAll("-", "");
-  const objectUrl =
-    `https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.${compactDate}/12/qmd/blend.t12z.qmd.f042.co.grib2`;
+  const objectUrl = `https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.${compactDate}/12/qmd/blend.t12z.qmd.f${
+    String(profile.forecastHour).padStart(3, "0")
+  }.co.grib2`;
   const indexUrl = `${objectUrl}.idx`;
   const budget = { used: 0, maximum: args.maxRequests };
   const indexResponse = await fetchOnce(indexUrl, budget);
   if (indexResponse.status !== 200) throw new Error(`index returned ${indexResponse.status}; expected 200`);
   const indexText = await indexResponse.text();
-  const selected = parseIndex(indexText, runDate);
+  const selected = parseIndex(indexText, runDate, args.sourceProfile);
   const rangeResponse = await fetchOnce(objectUrl, budget, {
     headers: { range: `bytes=${selected.rangeStart}-${selected.rangeEnd}`, "user-agent": "NBM Q95 public canary" },
   });
@@ -86,6 +107,8 @@ async function main(rawArgs: string[]) {
       decodedPath,
       "--run-date",
       runDate,
+      "--source-profile",
+      args.sourceProfile,
     ],
     clearEnv: true,
     stdout: "piped",
@@ -94,10 +117,16 @@ async function main(rawArgs: string[]) {
   const result = await withTimeout(child.output(), () => child.kill("SIGKILL"), 60_000);
   if (!result.success) throw new Error(`decoder failed: ${new TextDecoder().decode(result.stderr).trim()}`);
   const decoded = JSON.parse(await Deno.readTextFile(decodedPath)) as Decoded;
-  validateDecoded(decoded, runDate, stations);
+  validateDecoded(decoded, runDate, stations, args.sourceProfile);
   if (budget.used !== 2) throw new Error("canary did not consume exactly two requests");
+  const validIntervalStart = new Date(initialized.getTime() + (profile.forecastHour - 18) * 3_600_000);
+  const validIntervalEnd = new Date(initialized.getTime() + profile.forecastHour * 3_600_000);
+  if (
+    validIntervalStart.toISOString() !== `${args.marketDate}T12:00:00.000Z` ||
+    validIntervalEnd.toISOString() !== `${shiftDate(args.marketDate, 1)}T06:00:00.000Z`
+  ) throw new Error("source step interval does not match the exact market-date interval");
   const evidence = {
-    schema: CAPTURE_SCHEMA,
+    schema: profile.captureSchema,
     generated_at: new Date().toISOString(),
     research_only: true,
     source_only: true,
@@ -112,7 +141,8 @@ async function main(rawArgs: string[]) {
     active_trading_capability_changed: false,
     automatic_production_activation: false,
     source: {
-      source_product: SOURCE_PRODUCT,
+      source_profile: args.sourceProfile,
+      source_product: profile.sourceProduct,
       market_date: args.marketDate,
       run_initialized_at: initialized.toISOString(),
       available_at: lastModified.toISOString(),
@@ -128,6 +158,8 @@ async function main(rawArgs: string[]) {
       etag,
       eccodes_version: decoded.eccodes_version,
       decoded_identity: selectDecodedIdentity(decoded),
+      valid_interval_start: validIntervalStart.toISOString(),
+      valid_interval_end: validIntervalEnd.toISOString(),
       grid_type: decoded.grid_type,
       packing_type: decoded.packing_type,
     },
@@ -167,6 +199,13 @@ export function scheduledMarketDate(now: Date) {
   return runDate.toISOString().slice(0, 10);
 }
 
+export function scheduledF066MarketDate(now: Date) {
+  if (Number.isNaN(now.getTime())) throw new Error("scheduled clock is malformed");
+  const runDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  runDate.setUTCDate(runDate.getUTCDate() + 2);
+  return runDate.toISOString().slice(0, 10);
+}
+
 export function selectDecodedIdentity(decoded: Decoded) {
   return {
     data_date: decoded.data_date,
@@ -180,9 +219,10 @@ export function selectDecodedIdentity(decoded: Decoded) {
   };
 }
 
-export function parseIndex(text: string, runDate: string) {
+export function parseIndex(text: string, runDate: string, sourceProfile: SourceProfileName = "f042") {
+  const profile = SOURCE_PROFILES[sourceProfile];
   const lines = text.trim().split(/\r?\n/);
-  const exactIdentity = `d=${runDate.replaceAll("-", "")}12:${INDEX_IDENTITY}`;
+  const exactIdentity = `d=${runDate.replaceAll("-", "")}12:${profile.indexIdentity}`;
   const matches = lines.map((line, index) => ({ line, index })).filter(({ line }) =>
     line.split(":").slice(2).join(":") === exactIdentity
   );
@@ -201,11 +241,13 @@ export function parseIndex(text: string, runDate: string) {
   };
 }
 
-function validateDecoded(decoded: Decoded, runDate: string, stations: Station[]) {
+function validateDecoded(decoded: Decoded, runDate: string, stations: Station[], sourceProfile: SourceProfileName) {
+  const profile = SOURCE_PROFILES[sourceProfile];
   if (
-    decoded.schema !== DECODE_SCHEMA || decoded.eccodes_version !== ECCODES_VERSION ||
-    decoded.data_date !== runDate.replaceAll("-", "") || decoded.data_time !== 1200 || decoded.step_hours !== 42 ||
-    decoded.step_range !== "24-42" || decoded.percentile_value !== 95 || decoded.short_name !== "max_2t" ||
+    decoded.schema !== profile.decodeSchema || decoded.eccodes_version !== ECCODES_VERSION ||
+    decoded.data_date !== runDate.replaceAll("-", "") || decoded.data_time !== 1200 ||
+    decoded.step_hours !== profile.forecastHour || decoded.step_range !== profile.stepRange ||
+    decoded.percentile_value !== 95 || decoded.short_name !== "max_2t" ||
     decoded.level_type !== "heightAboveGround" || decoded.level !== 2 || !decoded.grid_type || !decoded.packing_type ||
     !Array.isArray(decoded.values) || decoded.values.length !== 20
   ) throw new Error("decoded GRIB identity is invalid");
@@ -285,10 +327,15 @@ function parseArgs(raw: string[]) {
   const marketDate = values.get("--market-date") ?? "";
   const outputDir = values.get("--output-dir") ?? "";
   const maxRequests = Number(values.get("--max-requests"));
-  if (!isIsoDate(marketDate) || !outputDir || maxRequests !== 2 || values.size !== 3) {
+  const sourceProfile = values.get("--source-profile") ?? "f042";
+  if (
+    !isIsoDate(marketDate) || !outputDir || maxRequests !== 2 ||
+    (sourceProfile !== "f042" && sourceProfile !== "f066") ||
+    values.size !== (values.has("--source-profile") ? 4 : 3)
+  ) {
     throw new Error("exact market date, /var/tmp output, and --max-requests 2 are required");
   }
-  return { marketDate, outputDir, maxRequests };
+  return { marketDate, outputDir, maxRequests, sourceProfile: sourceProfile as SourceProfileName };
 }
 
 function isIsoDate(value: string) {
