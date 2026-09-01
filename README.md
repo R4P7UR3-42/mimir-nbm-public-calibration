@@ -62,6 +62,11 @@ member fills, and the exporter always reports zero provider-confirmed fills. It 
 falsification aid, not exact prospective selection, execution, profit, recommendation, capital, order, trading, or
 production evidence. Raw f066 and adjacent identities remain zero-network rejections.
 
+The buffered f066 proxy now has a deterministic
+[exact-fee historical economics evaluation](docs/v43-f066-plus-three-exact-fee-economics.md). Six in-band rows were 5/6
+but lost `-$0.7669` after exact fees; only one row cleared the `$0.015` edge floor. Its `1/50` date support, zero depth,
+zero fills, and adaptive historical status make promotion explicitly not ready.
+
 Run locally only in an isolated environment:
 
 ```sh
