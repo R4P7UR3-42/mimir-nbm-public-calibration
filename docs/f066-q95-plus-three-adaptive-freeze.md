@@ -78,3 +78,9 @@ deno task evaluate:v43-f066-plus-three -- \
 
 The output is checksum-bound and create-once. A checksum-valid artifact relabeled as `+2°F`, 100 or 200 independent
 dates, independent OOS, profitable, authorized, or executable fails identity validation rather than receiving credit.
+
+## Historical exact-fee economics proxy
+
+The separate [exact-fee evaluator](v43-f066-plus-three-exact-fee-economics.md) joins the frozen public quote proxy to
+official outcomes without recovering depth or fill identity. Its one qualifying row across 50 opportunity dates is
+insufficient for promotion; it remains diagnostic adaptive historical evidence with no trading authority.

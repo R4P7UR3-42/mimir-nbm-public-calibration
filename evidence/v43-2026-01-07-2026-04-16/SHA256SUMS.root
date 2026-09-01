@@ -400,11 +400,13 @@ f0bfbab58a449656c155fbef92db87a9587c27956f6fe8ac123126d34b97c3e9  ./aggregate-in
 e408def98b02f8fad768671af1161ea873157ccdbd39ec6f2b96d6d743a80147  ./aggregate-input/f066/2026-04-16/evidence.json
 1fc7ddb6a5f4dc563d94f2c1f46ee8178a6c0ecd5758ec7c7e489aa3b5147795  ./outcomes/SHA256SUMS.file
 0a555aa7265be1fba5adfd72d07e9715bbe6d28ca481160ea73e9b0eae9dc0e5  ./outcomes/nbm-v43-outcomes.json
-fe25ddaca4645532fbc426651f271f41daf1e19735c116da5cfc69af14251f84  ./results/SHA256SUMS.results
+03205f300c736471164313293ae9e4424dbeb3809b8752ede2839767455601ea  ./results/SHA256SUMS.results
 53f1a5021bd97e8d4050fc6fd878b4abe0c46094de68ea985620d96e55df9df0  ./results/nbm-v43-evaluation.json
 4277a6ca0b72a917d9b353dccfec4b48ce0d848501e75b3b837444aa57ee8631  ./results/nbm-v43-f042-horizon.json
 974da33e4fc92e18fe54cd8e8c2b7d98942fac7a6cb258752cf6ddf2e6693ef1  ./results/nbm-v43-f066-horizon.json
 0269df5eca5e45cf9f0c2986536dbb14a1ad380dcbe3636416626a5a0c3ad922  ./results/nbm-v43-f066-plus-three-evaluation.json
+39be602ecade7446d837cac11bd50eb5e3d6fe303dc27e0136af69965ed84dae  ./results/nbm-v43-f066-plus-three-exact-fee-economics.json
+9671affa4124cfe595832f92345755a681fbb9d1eb2d857b6e0da978d7c09400  ./results/nbm-v43-f066-plus-three-execution-proxy.json
 fabf0895e59cd818cc673b4fcc64f12ee024eec9255bb7ba709417883139c467  ./runs/33473803900/SHA256SUMS.downloaded
 6fe188a5b5f77cf398ab3c7924cf71db46a8814fb2cdfec46c4ad381a9f59ff5  ./runs/33473803900/noaa-nbm-v43-v43-f042-shard-1-33473803900/2026-01-07/SHA256SUMS
 de283122dae0bc7a828c87e386cbc1975b795f994ac40c7d67b8355137e5eb7c  ./runs/33473803900/noaa-nbm-v43-v43-f042-shard-1-33473803900/2026-01-07/evidence.json

@@ -3,3 +3,5 @@
 974da33e4fc92e18fe54cd8e8c2b7d98942fac7a6cb258752cf6ddf2e6693ef1  results/nbm-v43-f066-horizon.json
 53f1a5021bd97e8d4050fc6fd878b4abe0c46094de68ea985620d96e55df9df0  results/nbm-v43-evaluation.json
 0269df5eca5e45cf9f0c2986536dbb14a1ad380dcbe3636416626a5a0c3ad922  results/nbm-v43-f066-plus-three-evaluation.json
+9671affa4124cfe595832f92345755a681fbb9d1eb2d857b6e0da978d7c09400  results/nbm-v43-f066-plus-three-execution-proxy.json
+39be602ecade7446d837cac11bd50eb5e3d6fe303dc27e0136af69965ed84dae  results/nbm-v43-f066-plus-three-exact-fee-economics.json
