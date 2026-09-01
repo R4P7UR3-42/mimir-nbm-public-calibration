@@ -44,7 +44,7 @@ def main():
                 "step_hours": 42,
                 "step_range": "24-42",
                 "percentile_value": 95,
-                "short_name": "2t",
+                "short_name": "max_2t",
                 "level_type": "heightAboveGround",
                 "level": 2,
             }

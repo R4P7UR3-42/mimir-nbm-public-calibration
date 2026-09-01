@@ -178,7 +178,7 @@ function validateDecoded(decoded: Decoded, runDate: string, stations: Station[])
   if (
     decoded.schema !== DECODE_SCHEMA || decoded.eccodes_version !== ECCODES_VERSION ||
     decoded.data_date !== runDate.replaceAll("-", "") || decoded.data_time !== 1200 || decoded.step_hours !== 42 ||
-    decoded.step_range !== "24-42" || decoded.percentile_value !== 95 || decoded.short_name !== "2t" ||
+    decoded.step_range !== "24-42" || decoded.percentile_value !== 95 || decoded.short_name !== "max_2t" ||
     decoded.level_type !== "heightAboveGround" || decoded.level !== 2 || !decoded.grid_type || !decoded.packing_type ||
     !Array.isArray(decoded.values) || decoded.values.length !== 20
   ) throw new Error("decoded GRIB identity is invalid");
