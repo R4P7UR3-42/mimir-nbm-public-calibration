@@ -1,4 +1,4 @@
-name: NOAA NBM Q95 one-date canary
+name: NOAA NBM Q95 f066 development canary
 
 on:
   schedule:
@@ -58,20 +58,10 @@ jobs:
           deno task check
           deno task test
           deno task lint
-      - name: Verify create-once durable evidence before provider access
+      - name: Run one bounded development capture
         id: persistence
-        env:
-          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
         run: |
-          STATE="$(deno run --allow-read=. scripts/persist.ts preflight --market-date "$MARKET_DATE")"
-          if [[ "$STATE" == "existing" ]]; then
-            echo "capture_required=false" >> "$GITHUB_OUTPUT"
-          elif [[ "$STATE" == "missing" ]]; then
-            echo "capture_required=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "unsupported persistence state: $STATE" >&2
-            exit 1
-          fi
+          echo "capture_required=true" >> "$GITHUB_OUTPUT"
       - name: Install exact decoder versions
         if: steps.persistence.outputs.capture_required == 'true'
         run: python -m pip install --disable-pip-version-check -r scripts/requirements.txt
@@ -111,7 +101,7 @@ jobs:
             .coverage.complete == true
           ' evidence.json
       - name: Preserve checksum-bound evidence create-once
-        if: steps.persistence.outputs.capture_required == 'true'
+        if: ${{ false }}
         env:
           MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
           WORKFLOW_SOURCE_SHA: ${{ github.sha }}
@@ -136,6 +126,7 @@ jobs:
           git commit -m "evidence: preserve NOAA NBM Q95 $MARKET_DATE"
           git push origin "HEAD:${GITHUB_REF_NAME}"
       - name: Reverify durable evidence without provider access
+        if: ${{ false }}
         env:
           MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
         run: |
@@ -145,10 +136,9 @@ jobs:
       - name: Upload checksum-bound public evidence convenience copy
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: noaa-nbm-q95-${{ steps.market-date.outputs.market_date }}-${{ github.run_id }}
+          name: noaa-nbm-q95-f066-development-${{ steps.market-date.outputs.market_date }}-${{ github.run_id }}
           path: |
-            evidence/${{ steps.market-date.outputs.market_date }}/evidence.json
-            evidence/${{ steps.market-date.outputs.market_date }}/provenance.json
-            evidence/${{ steps.market-date.outputs.market_date }}/SHA256SUMS
+            /var/tmp/nbm-q95-canary/evidence.json
+            /var/tmp/nbm-q95-canary/SHA256SUMS
           if-no-files-found: error
           retention-days: 30

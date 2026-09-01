@@ -7,7 +7,7 @@ from pathlib import Path
 
 import eccodes
 
-SCHEMA = "noaa_nbm_native_max_t_q95_decode_v1"
+SCHEMA = "noaa_nbm_native_max_t_q95_f066_development_decode_v1"
 
 
 def main():
@@ -41,8 +41,8 @@ def main():
             expected = {
                 "data_date": expected_date,
                 "data_time": 1200,
-                "step_hours": 42,
-                "step_range": "24-42",
+                "step_hours": 66,
+                "step_range": "48-66",
                 "percentile_value": 95,
                 "short_name": "max_2t",
                 "level_type": "heightAboveGround",

@@ -1,7 +1,7 @@
-const CAPTURE_SCHEMA = "noaa_nbm_native_max_t_q95_public_canary_v1";
-const DECODE_SCHEMA = "noaa_nbm_native_max_t_q95_decode_v1";
-const SOURCE_PRODUCT = "noaa_nbm_blend_qmd_12z_f042_native_max_t_q95_v1";
-const INDEX_IDENTITY = "TMP:2 m above ground:24-42 hour max fcst:95% level";
+const CAPTURE_SCHEMA = "noaa_nbm_native_max_t_q95_f066_development_canary_v1";
+const DECODE_SCHEMA = "noaa_nbm_native_max_t_q95_f066_development_decode_v1";
+const SOURCE_PRODUCT = "noaa_nbm_blend_qmd_12z_f066_native_max_t_q95_development_v1";
+const INDEX_IDENTITY = "TMP:2 m above ground:48-66 hour max fcst:95% level";
 const ECCODES_VERSION = "2.48.0";
 
 interface Station {
@@ -40,10 +40,10 @@ async function main(rawArgs: string[]) {
   const stations = JSON.parse(await Deno.readTextFile("data/stations.json")) as Station[];
   validateStations(stations);
   await Deno.mkdir(outputDir, { recursive: true });
-  const runDate = shiftDate(args.marketDate, -1);
+  const runDate = shiftDate(args.marketDate, -2);
   const compactDate = runDate.replaceAll("-", "");
   const objectUrl =
-    `https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.${compactDate}/12/qmd/blend.t12z.qmd.f042.co.grib2`;
+    `https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.${compactDate}/12/qmd/blend.t12z.qmd.f066.co.grib2`;
   const indexUrl = `${objectUrl}.idx`;
   const budget = { used: 0, maximum: args.maxRequests };
   const indexResponse = await fetchOnce(indexUrl, budget);
@@ -204,8 +204,8 @@ export function parseIndex(text: string, runDate: string) {
 function validateDecoded(decoded: Decoded, runDate: string, stations: Station[]) {
   if (
     decoded.schema !== DECODE_SCHEMA || decoded.eccodes_version !== ECCODES_VERSION ||
-    decoded.data_date !== runDate.replaceAll("-", "") || decoded.data_time !== 1200 || decoded.step_hours !== 42 ||
-    decoded.step_range !== "24-42" || decoded.percentile_value !== 95 || decoded.short_name !== "max_2t" ||
+    decoded.data_date !== runDate.replaceAll("-", "") || decoded.data_time !== 1200 || decoded.step_hours !== 66 ||
+    decoded.step_range !== "48-66" || decoded.percentile_value !== 95 || decoded.short_name !== "max_2t" ||
     decoded.level_type !== "heightAboveGround" || decoded.level !== 2 || !decoded.grid_type || !decoded.packing_type ||
     !Array.isArray(decoded.values) || decoded.values.length !== 20
   ) throw new Error("decoded GRIB identity is invalid");
