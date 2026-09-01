@@ -7,7 +7,10 @@ from pathlib import Path
 
 import eccodes
 
-SCHEMA = "noaa_nbm_native_max_t_q95_decode_v1"
+PROFILES = {
+    "f042": ("noaa_nbm_native_max_t_q95_decode_v1", 42, "24-42"),
+    "f066": ("noaa_nbm_native_max_t_q95_f066_decode_v1", 66, "48-66"),
+}
 
 
 def main():
@@ -16,6 +19,7 @@ def main():
     parser.add_argument("--stations", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--run-date", required=True)
+    parser.add_argument("--source-profile", choices=PROFILES, default="f042")
     args = parser.parse_args()
     stations = json.loads(Path(args.stations).read_text())
     if len(stations) != 20 or len({row["station_id"] for row in stations}) != 20:
@@ -38,11 +42,12 @@ def main():
                 "packing_type": str(eccodes.codes_get(handle, "packingType")),
             }
             expected_date = args.run_date.replace("-", "")
+            schema, forecast_hour, step_range = PROFILES[args.source_profile]
             expected = {
                 "data_date": expected_date,
                 "data_time": 1200,
-                "step_hours": 42,
-                "step_range": "24-42",
+                "step_hours": forecast_hour,
+                "step_range": step_range,
                 "percentile_value": 95,
                 "short_name": "max_2t",
                 "level_type": "heightAboveGround",
@@ -78,7 +83,7 @@ def main():
                 )
         finally:
             eccodes.codes_release(handle)
-    output = {"schema": SCHEMA, "eccodes_version": eccodes.__version__, **identity, "values": values}
+    output = {"schema": schema, "eccodes_version": eccodes.__version__, **identity, "values": values}
     Path(args.output).write_text(json.dumps(output, separators=(",", ":"), sort_keys=True) + "\n")
 
 

@@ -1,0 +1,147 @@
+name: NOAA NBM Q95 f066 daily source
+
+on:
+  schedule:
+    - cron: "35 20 * * *"
+  workflow_dispatch:
+    inputs:
+      market_date:
+        description: Exact market date; source is two-day-prior 12Z f066
+        required: true
+        default: "2026-09-03"
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  TMPDIR: /var/tmp
+
+concurrency:
+  group: noaa-nbm-q95-f066-daily-source-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.14"
+      - name: Resolve one exact f066 market date
+        id: market-date
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_MARKET_DATE: ${{ inputs.market_date }}
+        run: |
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            MARKET_DATE="$(deno eval 'import { scheduledF066MarketDate } from "./scripts/capture.ts"; console.log(scheduledF066MarketDate(new Date()));')"
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            MARKET_DATE="$DISPATCH_MARKET_DATE"
+          else
+            echo "unsupported event: $EVENT_NAME" >&2
+            exit 1
+          fi
+          [[ "$MARKET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
+          [[ "$MARKET_DATE" > "2026-09-02" ]]
+          echo "market_date=$MARKET_DATE" >> "$GITHUB_OUTPUT"
+      - name: Validate source-only contract
+        run: |
+          deno task check
+          deno task test
+          deno task lint
+      - name: Verify create-once f066 evidence before provider access
+        id: persistence
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+        run: |
+          STATE="$(deno run --allow-read=. scripts/persist.ts preflight --market-date "$MARKET_DATE" --source-profile f066)"
+          if [[ "$STATE" == "existing" ]]; then
+            echo "capture_required=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$STATE" == "missing" ]]; then
+            echo "capture_required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "unsupported persistence state: $STATE" >&2
+            exit 1
+          fi
+      - name: Install exact decoder versions
+        if: steps.persistence.outputs.capture_required == 'true'
+        run: python -m pip install --disable-pip-version-check -r scripts/requirements.txt
+      - name: Capture exactly one f066 date with two NOAA requests
+        if: steps.persistence.outputs.capture_required == 'true'
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+        run: |
+          umask 077
+          deno run \
+            --allow-read=.,/var/tmp/nbm-q95-f066 \
+            --allow-write=/var/tmp \
+            --allow-run=python3 \
+            --allow-net=noaa-nbm-grib2-pds.s3.amazonaws.com:443 \
+            scripts/capture.ts \
+            --market-date "$MARKET_DATE" \
+            --output-dir /var/tmp/nbm-q95-f066 \
+            --max-requests 2 \
+            --source-profile f066
+          cd /var/tmp/nbm-q95-f066
+          sha256sum -c SHA256SUMS
+          jq -e '
+            .schema == "noaa_nbm_native_max_t_q95_f066_public_canary_v1" and
+            .research_only == true and .source_only == true and
+            .provider_confirmed_fill_evidence == false and
+            .recommendation_authority == false and .order_authority == false and
+            .capital_risk_authority == false and .trading_authority == false and
+            .production_activation == false and .active_trading_capability_changed == false and
+            .automatic_production_activation == false and
+            .request_policy.maximum_requests == 2 and .request_policy.actual_requests == 2 and
+            .request_policy.no_retry == true and .request_policy.terminal_http_429 == true and
+            .coverage.stations == 20 and .coverage.complete == true
+          ' evidence.json
+      - name: Preserve checksum-bound f066 evidence create-once
+        if: steps.persistence.outputs.capture_required == 'true'
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+          WORKFLOW_SOURCE_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          deno run \
+            --allow-read=.,/var/tmp/nbm-q95-f066 \
+            --allow-write=evidence-f066 \
+            scripts/persist.ts preserve \
+            --market-date "$MARKET_DATE" \
+            --source-dir /var/tmp/nbm-q95-f066 \
+            --workflow-source-sha "$WORKFLOW_SOURCE_SHA" \
+            --workflow-run-id "$WORKFLOW_RUN_ID" \
+            --workflow-run-attempt "$WORKFLOW_RUN_ATTEMPT" \
+            --source-profile f066
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "evidence-f066/$MARKET_DATE/evidence.json" \
+            "evidence-f066/$MARKET_DATE/provenance.json" \
+            "evidence-f066/$MARKET_DATE/SHA256SUMS"
+          git diff --cached --quiet && { echo "new evidence produced no create-once diff" >&2; exit 1; }
+          git commit -m "evidence: preserve NOAA NBM Q95 f066 $MARKET_DATE"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Reverify f066 evidence without provider access
+        env:
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
+        run: |
+          test "$(deno run --allow-read=. scripts/persist.ts preflight --market-date "$MARKET_DATE" --source-profile f066)" = "existing"
+          cd "evidence-f066/$MARKET_DATE"
+          sha256sum -c SHA256SUMS
+      - name: Upload checksum-bound f066 convenience copy
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: noaa-nbm-q95-f066-${{ steps.market-date.outputs.market_date }}-${{ github.run_id }}
+          path: |
+            evidence-f066/${{ steps.market-date.outputs.market_date }}/evidence.json
+            evidence-f066/${{ steps.market-date.outputs.market_date }}/provenance.json
+            evidence-f066/${{ steps.market-date.outputs.market_date }}/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30

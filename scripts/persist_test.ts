@@ -88,6 +88,46 @@ Deno.test("durable evidence rejects malformed dates, authority drift, and checks
   }
 });
 
+Deno.test("f066 evidence has an independent create-once namespace and provenance", async () => {
+  const root = await Deno.makeTempDir({ dir: "/var/tmp", prefix: "nbm-f066-durable-test-" });
+  const sourceDir = `${root}/source`;
+  await Deno.mkdir(sourceDir);
+  const evidence = validEvidence();
+  evidence.schema = "noaa_nbm_native_max_t_q95_f066_public_canary_v1";
+  evidence.source = {
+    source_profile: "f066",
+    source_product: "noaa_nbm_blend_qmd_12z_f066_native_max_t_q95_v1",
+    market_date: MARKET_DATE,
+    valid_interval_start: `${MARKET_DATE}T12:00:00.000Z`,
+    valid_interval_end: "2026-09-03T06:00:00.000Z",
+  };
+  const evidenceText = `${JSON.stringify(evidence, null, 2)}\n`;
+  await Deno.writeTextFile(`${sourceDir}/evidence.json`, evidenceText);
+  await Deno.writeTextFile(`${sourceDir}/SHA256SUMS`, `${await sha256(evidenceText)}  evidence.json\n`);
+  try {
+    assertEquals(await inspectDurableEvidence(root, MARKET_DATE, "f066"), "missing");
+    assertEquals(
+      await preserveEvidence({
+        root,
+        marketDate: MARKET_DATE,
+        sourceDir,
+        workflowSourceSha: "c".repeat(40),
+        workflowRunId: "777",
+        workflowRunAttempt: 1,
+        sourceProfile: "f066",
+      }),
+      `evidence-f066/${MARKET_DATE}`,
+    );
+    assertEquals(await inspectDurableEvidence(root, MARKET_DATE, "f066"), "existing");
+    assertEquals(await inspectDurableEvidence(root, MARKET_DATE), "missing");
+    const provenance = JSON.parse(await Deno.readTextFile(`${root}/evidence-f066/${MARKET_DATE}/provenance.json`));
+    assertEquals(provenance.workflow_path, ".github/workflows/f066-daily-source.yml");
+    assertEquals(provenance.create_once_commit_path, `evidence-f066/${MARKET_DATE}`);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 function validEvidence(): Record<string, unknown> {
   return {
     schema: "noaa_nbm_native_max_t_q95_public_canary_v1",

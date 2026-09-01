@@ -20,6 +20,12 @@ logic, capital authority, or trading authority. Every artifact explicitly record
 recommendation, order, capital, trading, and production-activation authority. A successful canary establishes source
 feasibility only.
 
+An independent f066 source lane captures the two-day-prior 12Z `48-66 hour max fcst:95% level` message each day at
+20:35 UTC, assigns the market date two days ahead, and persists it create-once under
+`evidence-f066/YYYY-MM-DD/`. Its prospective threshold-dominance hypothesis is frozen separately in
+[`docs/f066-threshold-dominance-oos.md`](docs/f066-threshold-dominance-oos.md); it begins on 2026-09-03 and grants no
+trading authority. The original f042 workflow, schemas, schedule, and `evidence/` namespace remain unchanged.
+
 Run locally only in an isolated environment:
 
 ```sh
