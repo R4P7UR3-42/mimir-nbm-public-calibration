@@ -6,20 +6,26 @@ have filled, claim profit, or grant recommendation, order, capital, trading, or 
 
 ## Frozen selection
 
-The exporter accepts exactly one `v43-f042` or `v43-f066` 2,000-row horizon artifact plus the checksum-bound evaluator
-artifact that names its SHA-256. It validates all 20 station/series/product identities and the exact 100-date
-`2026-01-07` through `2026-04-16` window before networking. A zero-network calibration preflight then requires the
-selected horizon's `complete_100_dates` and `nonnegative_clustered_90_margin` gates to both be true. Failure stops
-before the Kalshi cutoff request: public execution reads cannot rescue a Q95 family that has already failed its chosen
-whole-date calibration boundary. The 90% clustered gate is the minimum bounded falsification screen for this adaptive
-holdout; it is not independent OOS evidence, a profitability claim, or permission to trade. For each station/date that
-passes, the exporter freezes:
+The exporter accepts exactly one `v43-f042` 2,000-row horizon artifact plus the checksum-bound evaluator artifact that
+names its SHA-256. It validates all 20 station/series/product identities and the exact 100-date `2026-01-07` through
+`2026-04-16` window before networking. A zero-network calibration preflight then requires the selected horizon's
+`complete_100_dates` and `nonnegative_clustered_90_margin` gates to both be true. Failure stops before the Kalshi cutoff
+request: public execution reads cannot rescue a Q95 family that has already failed its chosen whole-date calibration
+boundary. The 90% clustered gate is the minimum bounded falsification screen for this adaptive holdout; it is not
+independent OOS evidence, a profitability claim, or permission to trade. For each station/date that passes, the exporter
+freezes:
 
 - the exact daily high-temperature series and event ticker;
 - a `greater` contract whose `floor_strike` is `floor(native Q95 °F)`;
 - the NO side, corresponding to official integer `TMAX <= floor(Q95)`;
 - prior-market-date `20:05:00Z` as the causal decision time; and
 - the exact HTTPS NWS CLI settlement URL, office, `issuedby` product, and observation station.
+
+`v43-f066` is checksum- and calibration-validated and then rejected before the first Kalshi request. Its distinct
+prospective rule admits every above threshold at or above `ceil(f066 Q95)`, selects the first qualifying quote in the
+prior-day `[14:00Z,18:00Z)` window, and requires displayed depth at least one. Historical candles contain no displayed
+depth and cannot reproduce that cross-contract first-qualifying selection. Applying f042's `floor(Q95)` and `20:05Z`
+clock would be false evidence; a later f066 exporter needs a separately bounded exact multi-contract source with depth.
 
 The market payload's final quote, result, and volume cannot influence selection. A missing exact strike, missing NWS
 identity, duplicate identity, or market that was not open at the frozen decision remains an explicit unsupported row. It
@@ -30,9 +36,9 @@ is never replaced by an adjacent strike.
 Kalshi's [historical-data contract](https://docs.kalshi.com/getting_started/historical_data) partitions settled markets,
 candlesticks, and public trades at the timestamps returned by `GET /historical/cutoff`. The exporter requires both the
 market and trade cutoffs to cover the complete frozen window, enumerates `GET /historical/markets` by each exact series,
-and joins old events from `GET /events` by exact event ticker. Historical market discovery is cursor-paginated at 1,000
-markets per page; event discovery uses 200 events per page. Both stop after ten pages per series and reject repeated or
-malformed cursors.
+and joins old events from `GET /events?status=settled` by exact event ticker. Historical market discovery is
+cursor-paginated at 1,000 markets per page; settled-event discovery uses 200 events per page. Both stop after ten pages
+per series and reject repeated or malformed cursors.
 
 For each selected contract, `GET /historical/markets/{ticker}/candlesticks` requests one-minute candles from five
 minutes before the decision through the decision timestamp. Per Kalshi's
@@ -80,5 +86,6 @@ deno task export:v43-execution-proxy -- \
   --max-requests 8401
 ```
 
-Run f042 and f066 separately. Do not pool their shared market dates or reinterpret a quote/trade proxy as a member fill,
-realized P&L, independent OOS evidence, or permission to trade.
+The command supports f042 only. It rejects f066 before networking and never permits either horizon to inherit the
+other's rule. Do not reinterpret a quote/trade proxy as a member fill, realized P&L, independent OOS evidence, or
+permission to trade.

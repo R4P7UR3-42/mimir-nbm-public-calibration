@@ -39,11 +39,13 @@ prospective threshold-dominance hypothesis is frozen separately in
 [`docs/f066-threshold-dominance-oos.md`](docs/f066-threshold-dominance-oos.md); it begins on 2026-09-03 and grants no
 trading authority. The original f042 workflow, schemas, schedule, and `evidence/` namespace remain unchanged.
 
-The separate [public execution-proxy exporter](docs/v43-public-execution-proxy.md) can inspect the frozen v4.3 window
-without credentials or a database. It binds exact daily high-temperature contracts and NWS settlement products before
-reading one-minute historical top-of-book candles and exact-ticker public trades. Candles contain no depth, public
-trades are not member fills, and the exporter always reports zero provider-confirmed fills. It is a bounded strategy
-falsification aid, not execution, profit, recommendation, capital, order, trading, or production evidence.
+The separate [public execution-proxy exporter](docs/v43-public-execution-proxy.md) can inspect the frozen v4.3 f042
+window without credentials or a database. It binds exact daily high-temperature contracts and NWS settlement products
+before reading one-minute historical top-of-book candles and exact-ticker public trades. Candles contain no depth,
+public trades are not member fills, and the exporter always reports zero provider-confirmed fills. It is a bounded
+strategy falsification aid, not execution, profit, recommendation, capital, order, trading, or production evidence. It
+explicitly rejects f066 before networking because f066's distinct `ceil(Q95)`/first-window-quote rule requires
+historical displayed depth that Kalshi candlesticks do not expose.
 
 Run locally only in an isolated environment:
 

@@ -100,6 +100,7 @@ Deno.test("selection ignores attractive final quotes and outcomes and reports mi
         return Promise.resolve(jsonResponse({ markets: rows, cursor: "" }));
       }
       if (url.pathname === "/trade-api/v2/events") {
+        assertEquals(url.searchParams.get("status"), "settled");
         const station = stationForSeries(url.searchParams.get("series_ticker")!);
         const rows = dates.map((date) => event(station, date));
         if (station.stationId === "KHOU") {
@@ -203,19 +204,20 @@ Deno.test("failed complete-date or clustered-90 calibration stops before any Kal
   assertEquals(client.requestCount, 0);
 });
 
-Deno.test("f066 remains a separate checksum-linked horizon and reaches only its own preflight", async () => {
+Deno.test("f066 is checksum-validated then rejected before network rather than inheriting f042 semantics", async () => {
   const { source, evaluation } = await inputArtifacts("f066");
   let fetches = 0;
   const client = new BoundedPublicKalshiClient(V43_EXECUTION_PROXY_MAX_REQUESTS, () => {
     fetches += 1;
-    return Promise.resolve(new Response("rate limited", { status: 429 }));
+    return Promise.reject(new Error("network must not run for unsupported f066"));
   });
   await assertRejects(
     () => exportV43ExecutionProxy({ source, evaluation, client }),
     Error,
-    "HTTP 429 is terminal",
+    ">=ceil(Q95)",
   );
-  assertEquals(fetches, 1);
+  assertEquals(fetches, 0);
+  assertEquals(client.requestCount, 0);
 });
 
 async function inputArtifacts(horizon: "f042" | "f066" = "f042") {

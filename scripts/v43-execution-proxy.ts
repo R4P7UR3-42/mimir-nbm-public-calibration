@@ -157,7 +157,12 @@ export async function exportV43ExecutionProxy(input: {
       client: input.client,
       path: "/events",
       collection: "events",
-      params: { series_ticker: station.seriesTicker, limit: "200", with_nested_markets: "false" },
+      params: {
+        series_ticker: station.seriesTicker,
+        status: "settled",
+        limit: "200",
+        with_nested_markets: "false",
+      },
       seriesTicker: station.seriesTicker,
       pageCaptures: eventPages,
       expectedIdentities: expectedEventsBySeries.get(station.seriesTicker),
@@ -219,6 +224,7 @@ export async function exportV43ExecutionProxy(input: {
     credential_required: false,
     production_database_access: false,
     horizon: source.horizon,
+    supported_horizon: "f042",
     calibration_preflight: {
       complete_100_dates: true,
       nonnegative_clustered_90_margin: true,
@@ -637,6 +643,11 @@ async function validateSourceAndEvaluation(sourceValue: unknown, evaluationValue
   ) {
     throw new Error(
       "v4.3 calibration preflight failed: complete 100 dates and nonnegative clustered 90 margin are required",
+    );
+  }
+  if (horizon === "f066") {
+    throw new Error(
+      "f066 execution proxy is unsupported: its >=ceil(Q95), prior-day [14:00Z,18:00Z) first-quote, depth-at-least-one rule cannot be reconstructed from depth-free historical candles",
     );
   }
 
