@@ -47,7 +47,7 @@ jobs:
         run: |
           umask 077
           deno run \
-            --allow-read=. \
+            --allow-read=.,/var/tmp/nbm-q95-canary \
             --allow-write=/var/tmp \
             --allow-run=python3 \
             --allow-net=noaa-nbm-grib2-pds.s3.amazonaws.com:443 \
