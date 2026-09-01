@@ -87,6 +87,7 @@ async function main(rawArgs: string[]) {
       "--run-date",
       runDate,
     ],
+    clearEnv: true,
     stdout: "piped",
     stderr: "piped",
   }).spawn();
