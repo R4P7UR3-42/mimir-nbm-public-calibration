@@ -1,0 +1,100 @@
+name: NOAA NBM v4.3 Q95 historical source
+
+on:
+  workflow_dispatch:
+    inputs:
+      shard:
+        description: Frozen 25-market-date shard
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+
+permissions:
+  contents: read
+
+env:
+  TMPDIR: /var/tmp
+
+concurrency:
+  group: noaa-nbm-v43-q95-historical-source
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        profile: [v43-f042, v43-f066]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.14"
+      - name: Validate source-only implementation
+        run: |
+          deno task check
+          deno task test
+          deno task lint
+          python -m pip install --disable-pip-version-check -r scripts/requirements.txt
+      - name: Capture one frozen profile shard
+        env:
+          PROFILE: ${{ matrix.profile }}
+          SHARD: ${{ inputs.shard }}
+        run: |
+          set -euo pipefail
+          ROOT="/var/tmp/nbm-v43-${PROFILE}-shard-${SHARD}"
+          umask 077
+          mkdir -p "$ROOT"
+          deno eval \
+            'import { v43HistoricalMarketDateShard } from "./scripts/capture.ts"; console.log(JSON.stringify(v43HistoricalMarketDateShard(Number(Deno.args[0]))));' \
+            "$SHARD" > "$ROOT/dates.json"
+          jq -e 'length == 25' "$ROOT/dates.json"
+          while IFS= read -r MARKET_DATE; do
+            OUTPUT="$ROOT/$MARKET_DATE"
+            deno run \
+              --allow-read=.,"$ROOT" \
+              --allow-write="$ROOT" \
+              --allow-run=python3 \
+              --allow-net=noaa-nbm-grib2-pds.s3.amazonaws.com:443 \
+              scripts/capture.ts \
+              --market-date "$MARKET_DATE" \
+              --output-dir "$OUTPUT" \
+              --max-requests 2 \
+              --source-profile "$PROFILE"
+            (
+              cd "$OUTPUT"
+              sha256sum -c SHA256SUMS
+              jq -e '
+                .research_only == true and .source_only == true and
+                .historical_calibration_only == true and
+                .credential_required == false and .private_data_access == false and
+                .executable_quote_evidence == false and .outcome_evidence == false and
+                .provider_confirmed_fill_evidence == false and
+                .recommendation_authority == false and .order_authority == false and
+                .capital_risk_authority == false and .trading_authority == false and
+                .production_activation == false and .active_trading_capability_changed == false and
+                .automatic_production_activation == false and
+                .request_policy.maximum_requests == 2 and .request_policy.actual_requests == 2 and
+                .request_policy.no_retry == true and .request_policy.terminal_http_429 == true and
+                .coverage.stations == 20 and .coverage.complete == true
+              ' evidence.json
+            )
+          done < <(jq -r '.[]' "$ROOT/dates.json")
+      - name: Upload source-only shard artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: noaa-nbm-v43-${{ matrix.profile }}-shard-${{ inputs.shard }}-${{ github.run_id }}
+          path: /var/tmp/nbm-v43-${{ matrix.profile }}-shard-${{ inputs.shard }}/
+          if-no-files-found: error
+          retention-days: 30

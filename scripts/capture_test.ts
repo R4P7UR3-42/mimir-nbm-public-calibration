@@ -1,5 +1,14 @@
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { parseIndex, scheduledF066MarketDate, scheduledMarketDate, selectDecodedIdentity } from "./capture.ts";
+import {
+  parseIndex,
+  scheduledF066MarketDate,
+  scheduledMarketDate,
+  selectDecodedIdentity,
+  sourceProfileIdentity,
+  sourceRunDate,
+  V43_HISTORICAL_MARKET_DATES,
+  v43HistoricalMarketDateShard,
+} from "./capture.ts";
 
 Deno.test("scheduled capture derives the next market date from the UTC run date", () => {
   assertEquals(scheduledMarketDate(new Date("2026-09-01T20:20:00.000Z")), "2026-09-02");
@@ -131,4 +140,111 @@ Deno.test("selects only the exact f066 Q95 identity", () => {
     Error,
     "exactly one",
   );
+});
+
+Deno.test("freezes exactly 100 common v4.3 market dates in four bounded shards", () => {
+  assertEquals(V43_HISTORICAL_MARKET_DATES.length, 100);
+  assertEquals(V43_HISTORICAL_MARKET_DATES[0], "2026-01-07");
+  assertEquals(V43_HISTORICAL_MARKET_DATES.at(-1), "2026-04-16");
+  assertEquals(v43HistoricalMarketDateShard(1), V43_HISTORICAL_MARKET_DATES.slice(0, 25));
+  assertEquals(v43HistoricalMarketDateShard(4), V43_HISTORICAL_MARKET_DATES.slice(75, 100));
+  assertThrows(() => v43HistoricalMarketDateShard(0), Error, "one through four");
+  assertThrows(() => v43HistoricalMarketDateShard(5), Error, "one through four");
+});
+
+Deno.test("v4.3 market dates map to exact prior-day f042 and two-day-prior f066 runs", () => {
+  assertEquals(sourceRunDate("2026-01-07", "v43-f042"), "2026-01-06");
+  assertEquals(sourceRunDate("2026-01-07", "v43-f066"), "2026-01-05");
+  assertEquals(sourceRunDate("2026-04-16", "v43-f042"), "2026-04-15");
+  assertEquals(sourceRunDate("2026-04-16", "v43-f066"), "2026-04-14");
+  assertThrows(() => sourceRunDate("2026-01-06", "v43-f042"), Error, "frozen 100-date window");
+  assertThrows(() => sourceRunDate("2026-04-17", "v43-f066"), Error, "frozen 100-date window");
+});
+
+Deno.test("v4.3 capture, decoder, product, and regime identities cannot pool", () => {
+  const f042 = sourceProfileIdentity("v43-f042");
+  const f066 = sourceProfileIdentity("v43-f066");
+  const currentF042 = sourceProfileIdentity("f042");
+  const currentF066 = sourceProfileIdentity("f066");
+  assertEquals(f042, {
+    captureSchema: "noaa_nbm_v43_native_max_t_q95_f042_historical_source_v1",
+    decodeSchema: "noaa_nbm_v43_native_max_t_q95_f042_decode_v1",
+    sourceProduct: "noaa_nbm_v43_blend_qmd_12z_f042_native_max_t_q95_historical_calibration_v1",
+    historicalRegime: "noaa_nbm_v4_3_20250528_20260504",
+  });
+  assertEquals(f066, {
+    captureSchema: "noaa_nbm_v43_native_max_t_q95_f066_historical_source_v1",
+    decodeSchema: "noaa_nbm_v43_native_max_t_q95_f066_decode_v1",
+    sourceProduct: "noaa_nbm_v43_blend_qmd_12z_f066_native_max_t_q95_historical_calibration_v1",
+    historicalRegime: "noaa_nbm_v4_3_20250528_20260504",
+  });
+  assertEquals(
+    new Set([f042.captureSchema, f066.captureSchema, currentF042.captureSchema, currentF066.captureSchema]).size,
+    4,
+  );
+  assertEquals(
+    new Set([f042.sourceProduct, f066.sourceProduct, currentF042.sourceProduct, currentF066.sourceProduct]).size,
+    4,
+  );
+});
+
+Deno.test("python decoder preserves both disjoint v4.3 schemas", async () => {
+  const decoder = await Deno.readTextFile("scripts/decode.py");
+  assertStringIncludes(decoder, '"v43-f042": ("noaa_nbm_v43_native_max_t_q95_f042_decode_v1", 42, "24-42")');
+  assertStringIncludes(decoder, '"v43-f066": ("noaa_nbm_v43_native_max_t_q95_f066_decode_v1", 66, "48-66")');
+});
+
+Deno.test("selects only exact v4.3 horizon identities", () => {
+  const f042 = parseIndex(
+    [
+      "433:550000000:d=2026010612:TMP:2 m above ground:24-42 hour max fcst:95% level",
+      "434:552000000:x",
+    ].join("\n"),
+    "2026-01-06",
+    "v43-f042",
+  );
+  const f066 = parseIndex(
+    [
+      "433:560000000:d=2026010512:TMP:2 m above ground:48-66 hour max fcst:95% level",
+      "434:562000000:x",
+    ].join("\n"),
+    "2026-01-05",
+    "v43-f066",
+  );
+  assertEquals(f042.rangeStart, 550_000_000);
+  assertEquals(f066.rangeStart, 560_000_000);
+  assertThrows(
+    () =>
+      parseIndex(
+        "433:560000000:d=2026010512:TMP:2 m above ground:48-66 hour max fcst:95% level\n434:562000000:x",
+        "2026-01-05",
+        "v43-f042",
+      ),
+    Error,
+    "exactly one",
+  );
+});
+
+Deno.test("v4.3 workflow is manual, bounded, credential-free, and artifact-only", async () => {
+  const workflow = await Deno.readTextFile(".github/workflows/v43-historical-source.yml");
+  for (
+    const required of [
+      "workflow_dispatch:",
+      "max-parallel: 2",
+      "profile: [v43-f042, v43-f066]",
+      "v43HistoricalMarketDateShard",
+      "--max-requests 2",
+      ".request_policy.actual_requests == 2",
+      ".historical_calibration_only == true",
+      ".executable_quote_evidence == false",
+      ".outcome_evidence == false",
+      ".trading_authority == false",
+      "retention-days: 30",
+      "contents: read",
+      "TMPDIR: /var/tmp",
+    ]
+  ) assertStringIncludes(workflow, required);
+  assertEquals(workflow.includes("git push"), false);
+  assertEquals(/^\s+schedule:/m.test(workflow), false);
+  assertEquals(/^\s+secrets:/m.test(workflow), false);
 });

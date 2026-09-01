@@ -1,6 +1,12 @@
 const ECCODES_VERSION = "2.48.0";
 
-export type SourceProfileName = "f042" | "f066";
+export const V43_HISTORICAL_MARKET_START = "2026-01-07";
+export const V43_HISTORICAL_MARKET_END = "2026-04-16";
+export const V43_HISTORICAL_MARKET_DATES = Object.freeze(
+  dateRange(V43_HISTORICAL_MARKET_START, V43_HISTORICAL_MARKET_END),
+);
+
+export type SourceProfileName = "f042" | "f066" | "v43-f042" | "v43-f066";
 
 const SOURCE_PROFILES = {
   f042: {
@@ -11,6 +17,7 @@ const SOURCE_PROFILES = {
     runOffsetDays: -1,
     forecastHour: 42,
     stepRange: "24-42",
+    historicalRegime: null,
   },
   f066: {
     captureSchema: "noaa_nbm_native_max_t_q95_f066_public_canary_v1",
@@ -20,6 +27,27 @@ const SOURCE_PROFILES = {
     runOffsetDays: -2,
     forecastHour: 66,
     stepRange: "48-66",
+    historicalRegime: null,
+  },
+  "v43-f042": {
+    captureSchema: "noaa_nbm_v43_native_max_t_q95_f042_historical_source_v1",
+    decodeSchema: "noaa_nbm_v43_native_max_t_q95_f042_decode_v1",
+    sourceProduct: "noaa_nbm_v43_blend_qmd_12z_f042_native_max_t_q95_historical_calibration_v1",
+    indexIdentity: "TMP:2 m above ground:24-42 hour max fcst:95% level",
+    runOffsetDays: -1,
+    forecastHour: 42,
+    stepRange: "24-42",
+    historicalRegime: "noaa_nbm_v4_3_20250528_20260504",
+  },
+  "v43-f066": {
+    captureSchema: "noaa_nbm_v43_native_max_t_q95_f066_historical_source_v1",
+    decodeSchema: "noaa_nbm_v43_native_max_t_q95_f066_decode_v1",
+    sourceProduct: "noaa_nbm_v43_blend_qmd_12z_f066_native_max_t_q95_historical_calibration_v1",
+    indexIdentity: "TMP:2 m above ground:48-66 hour max fcst:95% level",
+    runOffsetDays: -2,
+    forecastHour: 66,
+    stepRange: "48-66",
+    historicalRegime: "noaa_nbm_v4_3_20250528_20260504",
   },
 } as const;
 
@@ -56,11 +84,12 @@ if (import.meta.main) await main(Deno.args);
 async function main(rawArgs: string[]) {
   const args = parseArgs(rawArgs);
   const profile = SOURCE_PROFILES[args.sourceProfile];
+  validateProfileMarketDate(args.sourceProfile, args.marketDate);
   const outputDir = validateOutputDir(args.outputDir);
   const stations = JSON.parse(await Deno.readTextFile("data/stations.json")) as Station[];
   validateStations(stations);
   await Deno.mkdir(outputDir, { recursive: true });
-  const runDate = shiftDate(args.marketDate, profile.runOffsetDays);
+  const runDate = sourceRunDate(args.marketDate, args.sourceProfile);
   const compactDate = runDate.replaceAll("-", "");
   const objectUrl = `https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.${compactDate}/12/qmd/blend.t12z.qmd.f${
     String(profile.forecastHour).padStart(3, "0")
@@ -130,6 +159,12 @@ async function main(rawArgs: string[]) {
     generated_at: new Date().toISOString(),
     research_only: true,
     source_only: true,
+    ...(profile.historicalRegime === null ? {} : {
+      historical_calibration_only: true,
+      source_regime: profile.historicalRegime,
+      executable_quote_evidence: false,
+      outcome_evidence: false,
+    }),
     credential_required: false,
     private_data_access: false,
     provider_confirmed_fill_evidence: false,
@@ -204,6 +239,28 @@ export function scheduledF066MarketDate(now: Date) {
   const runDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   runDate.setUTCDate(runDate.getUTCDate() + 2);
   return runDate.toISOString().slice(0, 10);
+}
+
+export function v43HistoricalMarketDateShard(shard: number) {
+  if (!Number.isInteger(shard) || shard < 1 || shard > 4) {
+    throw new Error("v4.3 historical shard must be an integer from one through four");
+  }
+  return V43_HISTORICAL_MARKET_DATES.slice((shard - 1) * 25, shard * 25);
+}
+
+export function sourceRunDate(marketDate: string, sourceProfile: SourceProfileName) {
+  validateProfileMarketDate(sourceProfile, marketDate);
+  return shiftDate(marketDate, SOURCE_PROFILES[sourceProfile].runOffsetDays);
+}
+
+export function sourceProfileIdentity(sourceProfile: SourceProfileName) {
+  const profile = SOURCE_PROFILES[sourceProfile];
+  return {
+    captureSchema: profile.captureSchema,
+    decodeSchema: profile.decodeSchema,
+    sourceProduct: profile.sourceProduct,
+    historicalRegime: profile.historicalRegime,
+  };
 }
 
 export function selectDecodedIdentity(decoded: Decoded) {
@@ -312,6 +369,25 @@ function shiftDate(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function dateRange(start: string, end: string) {
+  const dates: string[] = [];
+  let current = start;
+  while (current <= end) {
+    dates.push(current);
+    current = shiftDate(current, 1);
+  }
+  return dates;
+}
+
+function validateProfileMarketDate(sourceProfile: SourceProfileName, marketDate: string) {
+  if (
+    sourceProfile.startsWith("v43-") &&
+    (marketDate < V43_HISTORICAL_MARKET_START || marketDate > V43_HISTORICAL_MARKET_END)
+  ) {
+    throw new Error("v4.3 historical market date escaped the frozen 100-date window");
+  }
+}
+
 function validateOutputDir(value: string) {
   const normalized = value.startsWith("/var/tmp/") ? value.replace(/\/+$/, "") : "";
   if (!normalized || normalized === "/var/tmp") throw new Error("output must be a child of /var/tmp");
@@ -330,7 +406,7 @@ function parseArgs(raw: string[]) {
   const sourceProfile = values.get("--source-profile") ?? "f042";
   if (
     !isIsoDate(marketDate) || !outputDir || maxRequests !== 2 ||
-    (sourceProfile !== "f042" && sourceProfile !== "f066") ||
+    !Object.hasOwn(SOURCE_PROFILES, sourceProfile) ||
     values.size !== (values.has("--source-profile") ? 4 : 3)
   ) {
     throw new Error("exact market date, /var/tmp output, and --max-requests 2 are required");

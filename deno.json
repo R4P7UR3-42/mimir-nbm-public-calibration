@@ -1,7 +1,8 @@
 {
   "tasks": {
-    "check": "deno check scripts/capture.ts scripts/capture_test.ts scripts/persist.ts scripts/persist_test.ts",
-    "test": "deno test --allow-read=.,/var/tmp --allow-write=/var/tmp scripts/capture_test.ts scripts/persist_test.ts",
+    "check": "deno check scripts/capture.ts scripts/capture_test.ts scripts/aggregate-v43-source.ts scripts/aggregate-v43-source_test.ts scripts/persist.ts scripts/persist_test.ts",
+    "test": "deno test --allow-read=.,/var/tmp --allow-write=/var/tmp scripts/capture_test.ts scripts/aggregate-v43-source_test.ts scripts/persist_test.ts",
+    "aggregate:v43-source": "deno run --allow-read=.,/var/tmp --allow-write=/var/tmp scripts/aggregate-v43-source.ts",
     "lint": "deno lint scripts"
   },
   "imports": {

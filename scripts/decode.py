@@ -10,6 +10,8 @@ import eccodes
 PROFILES = {
     "f042": ("noaa_nbm_native_max_t_q95_decode_v1", 42, "24-42"),
     "f066": ("noaa_nbm_native_max_t_q95_f066_decode_v1", 66, "48-66"),
+    "v43-f042": ("noaa_nbm_v43_native_max_t_q95_f042_decode_v1", 42, "24-42"),
+    "v43-f066": ("noaa_nbm_v43_native_max_t_q95_f066_decode_v1", 66, "48-66"),
 }
 
 
