@@ -9,23 +9,25 @@ import {
 
 const stations = JSON.parse(await Deno.readTextFile("data/stations.json"));
 
-function catalog() {
+function catalog(historyEnd = "20261231") {
   return [
     "USAF,WBAN,STATION NAME,CTRY,STATE,ICAO,LAT,LON,ELEV(M),BEGIN,END",
     ...stations.map((row: Record<string, unknown>, index: number) =>
       `${String(index + 1).padStart(6, "0")},${
         String(index + 1).padStart(5, "0")
-      },X,US,,${row.station_id},${row.latitude},${row.longitude},0,20000101,20261231`
+      },X,US,,${row.station_id},${row.latitude},${row.longitude},0,20000101,${historyEnd}`
     ),
   ].join("\n");
 }
 
 function outcomes() {
   return [...frozenDates()].flatMap((date) =>
-    stations.map((_row: Record<string, unknown>, index: number) => ({
+    stations.map((row: Record<string, unknown>, index: number) => ({
       STATION: `USW000${String(index + 1).padStart(5, "0")}`,
       DATE: date,
       TMAX: "70",
+      LATITUDE: row.latitude,
+      LONGITUDE: row.longitude,
     }))
   );
 }
@@ -82,6 +84,33 @@ Deno.test("requires exact station mapping and all 2,000 unique integer outcomes"
   fractional[0].TMAX = "70.5";
   assertThrows(() => normalizeDailySummaries(fractional, stations, mappings), Error, "integer TMAX");
   assertThrows(() => parseIsdCatalog(catalog().replace(",00001,", ",99999,"), stations), Error, "invalid");
+});
+
+Deno.test("accepts a stale ISD history end only after exact complete daily-summary proof", () => {
+  const mappings = parseIsdCatalog(catalog("20250827"), stations);
+  assertEquals(mappings.size, 20);
+  assertEquals(mappings.get("KOKC")?.historyEnd, "20250827");
+  assertEquals(normalizeDailySummaries(outcomes(), stations, mappings).length, 2_000);
+  assertThrows(
+    () => normalizeDailySummaries(outcomes().slice(1), stations, mappings),
+    Error,
+    "coverage is incomplete",
+  );
+  const missingCoordinates = outcomes();
+  delete missingCoordinates[0].LATITUDE;
+  assertThrows(
+    () => normalizeDailySummaries(missingCoordinates, stations, mappings),
+    Error,
+    "latitude conflicts",
+  );
+});
+
+Deno.test("selects the uniquely latest exact WBAN and rejects an equally current conflict", () => {
+  const older = catalog("20240101").split("\n").slice(1);
+  const combined = `${catalog("20250827")}\n${older.join("\n")}`;
+  assertEquals(parseIsdCatalog(combined, stations).get("KOKC")?.historyEnd, "20250827");
+  const conflict = `${catalog("20250827")}\n000999,00999,X,US,,KOKC,35.393,-97.601,0,20000101,20250827`;
+  assertThrows(() => parseIsdCatalog(conflict, stations), Error, "ambiguous");
 });
 
 Deno.test("outcome artifact output is create-once", async () => {

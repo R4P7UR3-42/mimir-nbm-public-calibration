@@ -39,6 +39,14 @@ export interface OutcomeRow {
   tmax_f: number;
 }
 
+export interface StationMapping {
+  ghcnStationId: string;
+  usaf: string;
+  wban: string;
+  historyBegin: string;
+  historyEnd: string;
+}
+
 interface FetchLike {
   (input: string | URL | Request, init?: RequestInit): Promise<Response>;
 }
@@ -107,7 +115,19 @@ export async function acquireV43OfficialOutcomes(options: AcquireOutcomeOptions)
       dataset: "daily-summaries",
       field: "TMAX",
       units: "standard",
-      mapping: "exact_icao_to_isd_usaf_wban_to_ghcnd_usw000_wban_v1",
+      mapping: "latest_exact_icao_wban_to_ghcnd_usw000_wban_with_complete_daily_summary_proof_v1",
+      catalog_history_end_is_outcome_coverage: false,
+      station_mappings: options.stations.map((station) => {
+        const mapping = mappings.get(station.station_id)!;
+        return {
+          station_id: station.station_id,
+          ghcn_station_id: mapping.ghcnStationId,
+          usaf: mapping.usaf,
+          wban: mapping.wban,
+          history_begin: mapping.historyBegin,
+          history_end: mapping.historyEnd,
+        };
+      }),
     },
     request_policy: { maximum_requests: 2, actual_requests: requests, no_retry: true, terminal_http_429: true },
     coverage: { stations: 20, market_dates: 100, station_dates: 2_000, complete: true },
@@ -140,7 +160,7 @@ export function parseIsdCatalog(text: string, stations: FrozenStation[]) {
   const indexes = Object.fromEntries(required.map((name) => [name, headers.indexOf(name)]));
   if (required.some((name) => indexes[name] < 0)) throw new Error("ISD catalog headers are incomplete");
   const wanted = new Map(stations.map((station) => [station.station_id, station]));
-  const result = new Map<string, { ghcnStationId: string; usaf: string; wban: string }>();
+  const candidates = new Map<string, StationMapping[]>();
   for (const line of lines.slice(1)) {
     const values = csvLine(line);
     const icao = values[indexes.ICAO]?.trim();
@@ -152,14 +172,28 @@ export function parseIsdCatalog(text: string, stations: FrozenStation[]) {
     const longitude = Number(values[indexes.LON]);
     const begin = values[indexes.BEGIN]?.trim();
     const end = values[indexes.END]?.trim();
-    if (begin > START_DATE.replaceAll("-", "") || end < END_DATE.replaceAll("-", "")) continue;
+    if (begin > START_DATE.replaceAll("-", "")) continue;
     if (
       !/^\d{6}$/.test(usaf) || !/^\d{5}$/.test(wban) || wban === "99999" ||
       !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
       Math.abs(latitude - station.latitude) > 0.2 || Math.abs(longitude - station.longitude) > 0.2
     ) throw new Error(`ISD catalog identity is invalid for ${icao}`);
-    if (result.has(icao)) throw new Error(`ISD catalog identity is ambiguous for ${icao}`);
-    result.set(icao, { ghcnStationId: `USW000${wban}`, usaf, wban });
+    const matches = candidates.get(icao) ?? [];
+    matches.push({ ghcnStationId: `USW000${wban}`, usaf, wban, historyBegin: begin, historyEnd: end });
+    candidates.set(icao, matches);
+  }
+  const result = new Map<string, StationMapping>();
+  for (const station of stations) {
+    const matches = (candidates.get(station.station_id) ?? []).sort((left, right) =>
+      right.historyEnd.localeCompare(left.historyEnd) || right.historyBegin.localeCompare(left.historyBegin)
+    );
+    const selected = matches[0];
+    if (!selected) continue;
+    const equallyCurrent = matches.filter((row) => row.historyEnd === selected.historyEnd);
+    if (new Set(equallyCurrent.map((row) => row.wban)).size !== 1) {
+      throw new Error(`ISD catalog identity is ambiguous for ${station.station_id}`);
+    }
+    result.set(station.station_id, selected);
   }
   if (result.size !== 20) throw new Error("ISD catalog does not map every frozen station exactly once");
   return result;
@@ -168,7 +202,7 @@ export function parseIsdCatalog(text: string, stations: FrozenStation[]) {
 export function normalizeDailySummaries(
   value: unknown,
   stations: FrozenStation[],
-  mappings: Map<string, { ghcnStationId: string }>,
+  mappings: Map<string, StationMapping>,
 ): OutcomeRow[] {
   if (!Array.isArray(value)) throw new Error("NCEI Daily Summaries payload is malformed");
   const stationByGhcn = new Map(
@@ -186,10 +220,10 @@ export function normalizeDailySummaries(
     if (!station || !expectedDates.has(marketDate) || !Number.isInteger(tmax) || tmax < -100 || tmax > 150) {
       throw new Error("NCEI outcome station, date, or integer TMAX is invalid");
     }
-    if (row.LATITUDE !== undefined && Math.abs(Number(row.LATITUDE) - station.latitude) > 0.2) {
+    if (!Number.isFinite(Number(row.LATITUDE)) || Math.abs(Number(row.LATITUDE) - station.latitude) > 0.2) {
       throw new Error("NCEI outcome latitude conflicts with the frozen station");
     }
-    if (row.LONGITUDE !== undefined && Math.abs(Number(row.LONGITUDE) - station.longitude) > 0.2) {
+    if (!Number.isFinite(Number(row.LONGITUDE)) || Math.abs(Number(row.LONGITUDE) - station.longitude) > 0.2) {
       throw new Error("NCEI outcome longitude conflicts with the frozen station");
     }
     const key = `${station.station_id}/${marketDate}`;
