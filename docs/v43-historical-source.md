@@ -51,8 +51,11 @@ deno task evaluate:v43 -- \
   --output /var/tmp/nbm-v43-evaluation.json
 ```
 
-Outcome acquisition has a two-request total budget, never retries, and treats HTTP 429 as terminal. The evaluator
-requires complete exact station/date coverage, verifies every artifact checksum and source/run identity, and scores
+Outcome acquisition has a two-request total budget, never retries, and treats HTTP 429 as terminal. NOAA's current ISD
+history catalog can end its latest otherwise exact ICAO/WBAN rows before the requested Daily Summaries dates. The
+collector therefore treats the uniquely latest exact ICAO/WBAN row as identity only, records its history end without
+claiming coverage, and requires the second response to prove all 2,000 exact GHCN station/date rows with matching
+coordinates. Missing coverage or metadata fails closed. The evaluator verifies every artifact checksum and source/run identity, and scores
 `official integer TMAX <= floor(native Q95)`. It uses 10,000 fixed-seed whole-market-date bootstrap resamples for each
 horizon and station leave-one-out slice. The horizons share the same 100 market-date clusters and cannot be reported as
 200 independent dates. Because the family was selected after related NBM development, this remains an adaptive
