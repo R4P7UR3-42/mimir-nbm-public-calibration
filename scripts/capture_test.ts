@@ -22,8 +22,15 @@ Deno.test("workflow preserves bounded daily source-only capture contract", async
       "sha256sum -c SHA256SUMS",
       "retention-days: 30",
       "cancel-in-progress: false",
+      "contents: write",
+      "scripts/persist.ts preflight",
+      "steps.persistence.outputs.capture_required == 'true'",
+      "scripts/persist.ts preserve",
+      'git push origin "HEAD:${GITHUB_REF_NAME}"',
+      "evidence/${{ steps.market-date.outputs.market_date }}/provenance.json",
     ]
   ) assertStringIncludes(workflow, required);
+  assertEquals(/^\s+push:/m.test(workflow), false);
 });
 
 Deno.test("persists the exact validated decoded GRIB identity", () => {
