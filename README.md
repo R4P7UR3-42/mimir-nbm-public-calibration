@@ -7,8 +7,15 @@ Credential-free, order-free source-feasibility capture for one exact NOAA NBM QM
 The canary reads the prior-day 12Z f042 public object for one market date, makes exactly two HTTP requests (index plus
 one byte range), decodes the frozen 20-station inventory with pinned ecCodes, and publishes checksum-bound evidence.
 
+The default-branch workflow runs daily at 20:20 UTC, after the frozen 20:00 UTC source-availability deadline. Scheduled
+runs deterministically assign the next UTC date as the market date; manual runs retain an explicit `market_date` input.
+Runs share one non-cancelling concurrency group, time out after 20 minutes, and retain checksum-bound artifacts for 30
+days.
+
 This repository contains no Kalshi client, credentials, private data, production access, recommendation logic, order
-logic, capital authority, or trading authority. A successful canary establishes source feasibility only.
+logic, capital authority, or trading authority. Every artifact explicitly records source-only status and false
+recommendation, order, capital, trading, and production-activation authority. A successful canary establishes source
+feasibility only.
 
 Run locally only in an isolated environment:
 

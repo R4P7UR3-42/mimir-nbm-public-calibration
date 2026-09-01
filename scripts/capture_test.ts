@@ -1,5 +1,30 @@
-import { assertEquals, assertThrows } from "@std/assert";
-import { parseIndex, selectDecodedIdentity } from "./capture.ts";
+import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import { parseIndex, scheduledMarketDate, selectDecodedIdentity } from "./capture.ts";
+
+Deno.test("scheduled capture derives the next market date from the UTC run date", () => {
+  assertEquals(scheduledMarketDate(new Date("2026-09-01T20:20:00.000Z")), "2026-09-02");
+  assertEquals(scheduledMarketDate(new Date("2026-12-31T23:59:59.999Z")), "2027-01-01");
+  assertThrows(() => scheduledMarketDate(new Date("invalid")), Error, "clock");
+});
+
+Deno.test("workflow preserves bounded daily source-only capture contract", async () => {
+  const workflow = await Deno.readTextFile(".github/workflows/one-date-canary.yml");
+  for (
+    const required of [
+      'cron: "20 20 * * *"',
+      "EVENT_NAME: ${{ github.event_name }}",
+      "DISPATCH_MARKET_DATE: ${{ inputs.market_date }}",
+      "scheduledMarketDate(new Date())",
+      "--max-requests 2",
+      ".source_only == true",
+      ".trading_authority == false",
+      ".request_policy.actual_requests == 2",
+      "sha256sum -c SHA256SUMS",
+      "retention-days: 30",
+      "cancel-in-progress: false",
+    ]
+  ) assertStringIncludes(workflow, required);
+});
 
 Deno.test("persists the exact validated decoded GRIB identity", () => {
   const identity = selectDecodedIdentity({

@@ -1,12 +1,15 @@
 name: NOAA NBM Q95 one-date canary
 
 on:
+  schedule:
+    # Prior-day 12Z f042 must already have been published by the frozen 20:00 UTC causal deadline.
+    - cron: "20 20 * * *"
   workflow_dispatch:
     inputs:
       market_date:
         description: Exact market date; source is prior-day 12Z f042
         required: true
-        default: "2026-09-01"
+        default: "2026-09-02"
         type: string
 
 permissions:
@@ -16,7 +19,7 @@ env:
   TMPDIR: /var/tmp
 
 concurrency:
-  group: noaa-nbm-q95-one-date
+  group: noaa-nbm-q95-daily-source-capture
   cancel-in-progress: false
 
 jobs:
@@ -31,11 +34,27 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.14"
+      - name: Resolve one exact market date
+        id: market-date
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_MARKET_DATE: ${{ inputs.market_date }}
+        run: |
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            MARKET_DATE="$(deno eval 'import { scheduledMarketDate } from "./scripts/capture.ts"; console.log(scheduledMarketDate(new Date()));')"
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            MARKET_DATE="$DISPATCH_MARKET_DATE"
+          else
+            echo "unsupported event: $EVENT_NAME" >&2
+            exit 1
+          fi
+          [[ "$MARKET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
+          echo "market_date=$MARKET_DATE" >> "$GITHUB_OUTPUT"
       - name: Validate source-only contract
         env:
-          MARKET_DATE: ${{ inputs.market_date }}
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
         run: |
-          [[ "$MARKET_DATE" =~ ^2026-[0-9]{2}-[0-9]{2}$ ]]
+          [[ "$MARKET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
           deno task check
           deno task test
           deno task lint
@@ -43,7 +62,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check -r scripts/requirements.txt
       - name: Capture exactly one date with two NOAA requests
         env:
-          MARKET_DATE: ${{ inputs.market_date }}
+          MARKET_DATE: ${{ steps.market-date.outputs.market_date }}
         run: |
           umask 077
           deno run \
@@ -57,11 +76,28 @@ jobs:
             --max-requests 2
           cd /var/tmp/nbm-q95-canary
           sha256sum -c SHA256SUMS
-          jq -e '.research_only == true and .trading_authority == false and .request_policy.actual_requests == 2 and .coverage.stations == 20 and .coverage.complete == true' evidence.json
+          jq -e '
+            .research_only == true and
+            .source_only == true and
+            .provider_confirmed_fill_evidence == false and
+            .recommendation_authority == false and
+            .order_authority == false and
+            .capital_risk_authority == false and
+            .trading_authority == false and
+            .production_activation == false and
+            .active_trading_capability_changed == false and
+            .automatic_production_activation == false and
+            .request_policy.maximum_requests == 2 and
+            .request_policy.actual_requests == 2 and
+            .request_policy.no_retry == true and
+            .request_policy.terminal_http_429 == true and
+            .coverage.stations == 20 and
+            .coverage.complete == true
+          ' evidence.json
       - name: Upload checksum-bound public evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: noaa-nbm-q95-${{ inputs.market_date }}-${{ github.run_id }}
+          name: noaa-nbm-q95-${{ steps.market-date.outputs.market_date }}-${{ github.run_id }}
           path: |
             /var/tmp/nbm-q95-canary/evidence.json
             /var/tmp/nbm-q95-canary/SHA256SUMS

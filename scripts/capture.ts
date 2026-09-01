@@ -100,11 +100,17 @@ async function main(rawArgs: string[]) {
     schema: CAPTURE_SCHEMA,
     generated_at: new Date().toISOString(),
     research_only: true,
+    source_only: true,
     credential_required: false,
     private_data_access: false,
     provider_confirmed_fill_evidence: false,
+    recommendation_authority: false,
+    order_authority: false,
     capital_risk_authority: false,
     trading_authority: false,
+    production_activation: false,
+    active_trading_capability_changed: false,
+    automatic_production_activation: false,
     source: {
       source_product: SOURCE_PRODUCT,
       market_date: args.marketDate,
@@ -152,6 +158,13 @@ async function main(rawArgs: string[]) {
   await Deno.remove(gribPath);
   await Deno.remove(decodedPath);
   console.log(JSON.stringify({ schema: evidence.schema, source: evidence.source, coverage: evidence.coverage }));
+}
+
+export function scheduledMarketDate(now: Date) {
+  if (Number.isNaN(now.getTime())) throw new Error("scheduled clock is malformed");
+  const runDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  runDate.setUTCDate(runDate.getUTCDate() + 1);
+  return runDate.toISOString().slice(0, 10);
 }
 
 export function selectDecodedIdentity(decoded: Decoded) {
@@ -272,8 +285,14 @@ function parseArgs(raw: string[]) {
   const marketDate = values.get("--market-date") ?? "";
   const outputDir = values.get("--output-dir") ?? "";
   const maxRequests = Number(values.get("--max-requests"));
-  if (!/^2026-\d{2}-\d{2}$/.test(marketDate) || !outputDir || maxRequests !== 2 || values.size !== 3) {
+  if (!isIsoDate(marketDate) || !outputDir || maxRequests !== 2 || values.size !== 3) {
     throw new Error("exact market date, /var/tmp output, and --max-requests 2 are required");
   }
   return { marketDate, outputDir, maxRequests };
+}
+
+function isIsoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
