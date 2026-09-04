@@ -1,0 +1,22 @@
+{
+  "schema": "noaa_nbm_q95_f066_public_durable_provenance_v1",
+  "source_repository": "R4P7UR3-42/mimir-nbm-public-calibration",
+  "workflow_path": ".github/workflows/f066-daily-source.yml",
+  "workflow_source_sha": "9c2ec0c5c93639873677a8be07a8ce28e3d53ee4",
+  "workflow_run_id": "33925817560",
+  "workflow_run_attempt": 1,
+  "market_date": "2026-09-06",
+  "evidence_sha256": "214b3ffd7bba35f10db71fa3962c75285a9164e3b6dcde5b06849d53d639ec9c",
+  "create_once_commit_path": "evidence-f066/2026-09-06",
+  "research_only": true,
+  "source_only": true,
+  "credential_required": false,
+  "provider_confirmed_fill_evidence": false,
+  "recommendation_authority": false,
+  "order_authority": false,
+  "capital_risk_authority": false,
+  "trading_authority": false,
+  "production_activation": false,
+  "active_trading_capability_changed": false,
+  "automatic_production_activation": false
+}
