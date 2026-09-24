@@ -1,0 +1,22 @@
+{
+  "schema": "noaa_nbm_q95_public_durable_provenance_v1",
+  "source_repository": "R4P7UR3-42/mimir-nbm-public-calibration",
+  "workflow_path": ".github/workflows/one-date-canary.yml",
+  "workflow_source_sha": "a5950975f0cc11211badfac0308a13c2ac1075c4",
+  "workflow_run_id": "36071719861",
+  "workflow_run_attempt": 1,
+  "market_date": "2026-09-25",
+  "evidence_sha256": "4fd0698aaf4d9fbeb4ecbd9b5c54f0e4b26fd65eea8126042e919582a68784c1",
+  "create_once_commit_path": "evidence/2026-09-25",
+  "research_only": true,
+  "source_only": true,
+  "credential_required": false,
+  "provider_confirmed_fill_evidence": false,
+  "recommendation_authority": false,
+  "order_authority": false,
+  "capital_risk_authority": false,
+  "trading_authority": false,
+  "production_activation": false,
+  "active_trading_capability_changed": false,
+  "automatic_production_activation": false
+}
